@@ -4,6 +4,8 @@
 
 A native macOS menu bar app that shows your Claude.ai usage at a glance — session and weekly utilization percentages, time until reset, and visual warnings when you're close to the limit.
 
+<a href="https://buymeacoffee.com/ajaxjiang"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=flat&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me a Coffee" /></a>
+
 ## Features
 
 - **Live usage display** — session (5-hour) and weekly (7-day) utilization from Claude.ai
@@ -68,8 +70,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding conventions
 Burnout is licensed under the [GNU General Public License v3.0](LICENSE).
 
 This means:
+
 - You can use, modify, and distribute this software freely
 - Any derivative work must also be released under GPL-3.0
 - The GPL-3.0 is incompatible with Apple's App Store DRM, so forks cannot be redistributed via the App Store without a separate license grant from the copyright holder
 
-Copyright (C) 2025 Jiacheng Jiang
+Copyright (C) 2026 Jiacheng Jiang

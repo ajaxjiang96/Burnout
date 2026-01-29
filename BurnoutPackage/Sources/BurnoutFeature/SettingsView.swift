@@ -11,8 +11,11 @@ public struct SettingsView: View {
     public var body: some View {
         Form {
             Section {
-                TextField("Organization ID", text: $viewModel.organizationId, prompt: Text("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"))
-                    .font(.system(.body, design: .monospaced))
+                TextField(
+                    "Organization ID", text: $viewModel.organizationId,
+                    prompt: Text("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
+                )
+                .font(.system(.body, design: .monospaced))
 
                 SecureField("Session Key", text: $viewModel.sessionKey, prompt: Text("sk-ant-..."))
                     .font(.system(.body, design: .monospaced))
@@ -56,9 +59,36 @@ public struct SettingsView: View {
                     }
                 }
             }
+            Section("About") {
+                LabeledContent("Version") {
+                    Text(Self.appVersion)
+                }
+                LabeledContent("Copyright") {
+                    Text("© 2026 Jiacheng Jiang")
+                }
+                LabeledContent("License") {
+                    Text("GPL-3.0")
+                }
+                HStack {
+                    Spacer()
+                    Link(destination: URL(string: "https://buymeacoffee.com/ajaxjiang")!) {
+                        Image("bmc-button")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(height: 40)
+                    }
+                }
+            }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 320)
+        .frame(width: 480, height: 420)
+    }
+
+    private static var appVersion: String {
+        let version =
+            Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "–"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "–"
+        return "\(version) (\(build))"
     }
 
     private var helpView: some View {
@@ -70,7 +100,8 @@ public struct SettingsView: View {
                 HelpStep(number: 1, text: "Go to claude.ai/settings/usage in your browser")
                 HelpStep(number: 2, text: "Open Developer Tools (Cmd+Option+I)")
                 HelpStep(number: 3, text: "Go to Network tab and refresh the page")
-                HelpStep(number: 4, text: "Find the 'usage' request, copy the UUID from the URL path")
+                HelpStep(
+                    number: 4, text: "Find the 'usage' request, copy the UUID from the URL path")
                 HelpStep(number: 5, text: "Go to Application > Cookies > claude.ai")
                 HelpStep(number: 6, text: "Copy the 'sessionKey' value")
             }
@@ -109,10 +140,11 @@ private struct HelpStep: View {
 }
 
 #Preview("Settings - Configured") {
-    SettingsView(viewModel: {
-        let vm = UsageViewModel(webUsage: nil)
-        vm.organizationId = "abcd1234-5678-9abc-def0-123456789abc"
-        vm.sessionKey = "sk-ant-example-key"
-        return vm
-    }())
+    SettingsView(
+        viewModel: {
+            let vm = UsageViewModel(webUsage: nil)
+            vm.organizationId = "abcd1234-5678-9abc-def0-123456789abc"
+            vm.sessionKey = "sk-ant-example-key"
+            return vm
+        }())
 }
