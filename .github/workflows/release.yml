@@ -1,0 +1,197 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-release:
+    name: Build, Sign, Notarize & Release
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    env:
+      WORKSPACE: Burnout.xcworkspace
+      SCHEME: Burnout
+      ARCHIVE_PATH: build/Burnout.xcarchive
+      EXPORT_PATH: build/export
+      APP_NAME: Burnout.app
+      DMG_NAME: Burnout.dmg
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          echo "version=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Building version: $TAG"
+
+      - name: Select Xcode 26
+        run: |
+          # Use Xcode 26 if available, fall back to latest
+          if [ -d "/Applications/Xcode_26.0.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_26.0.app/Contents/Developer
+          elif [ -d "/Applications/Xcode_26.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_26.app/Contents/Developer
+          else
+            echo "Xcode 26 not found, using default Xcode"
+            xcode-select -p
+          fi
+          xcodebuild -version
+
+      - name: Import signing certificate
+        env:
+          P12_BASE64: ${{ secrets.DEVELOPER_ID_CERTIFICATE_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          CERTIFICATE_PATH="$RUNNER_TEMP/certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+
+          # Decode certificate
+          echo "$P12_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+
+          # Create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Import certificate
+          security import "$CERTIFICATE_PATH" \
+            -P "$P12_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+
+          # Allow codesign access without prompt
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
+
+          # Add to keychain search list
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+
+      - name: Decode App Store Connect API key
+        env:
+          ASC_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/private_keys"
+          echo "$ASC_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8"
+
+      - name: Prepare ExportOptions.plist
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          sed -i '' "s/__TEAM_ID__/$APPLE_TEAM_ID/g" ExportOptions.plist
+          echo "ExportOptions.plist contents:"
+          cat ExportOptions.plist
+
+      - name: Resolve Swift packages
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -clonedSourcePackagesDirPath build/SourcePackages
+
+      - name: Archive
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          xcodebuild archive \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -archivePath "$ARCHIVE_PATH" \
+            -clonedSourcePackagesDirPath build/SourcePackages \
+            MARKETING_VERSION="$VERSION" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            | xcpretty || true
+
+      - name: Export archive
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath "$EXPORT_PATH" \
+            | xcpretty || true
+
+      - name: Notarize app
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          APP_PATH="$EXPORT_PATH/$APP_NAME"
+          ZIP_PATH="$RUNNER_TEMP/Burnout-notarize.zip"
+
+          # Create zip for notarization
+          ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
+
+          # Submit for notarization and wait
+          xcrun notarytool submit "$ZIP_PATH" \
+            --key "$RUNNER_TEMP/private_keys/AuthKey_${ASC_KEY_ID}.p8" \
+            --key-id "$ASC_KEY_ID" \
+            --issuer "$ASC_ISSUER_ID" \
+            --wait
+
+          # Staple the notarization ticket
+          xcrun stapler staple "$APP_PATH"
+
+      - name: Create DMG
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          DMG_STAGING="$RUNNER_TEMP/dmg-staging"
+          DMG_PATH="build/$DMG_NAME"
+
+          # Stage DMG contents
+          mkdir -p "$DMG_STAGING"
+          cp -R "$EXPORT_PATH/$APP_NAME" "$DMG_STAGING/"
+          ln -s /Applications "$DMG_STAGING/Applications"
+
+          # Create DMG
+          hdiutil create \
+            -volname "Burnout $VERSION" \
+            -srcfolder "$DMG_STAGING" \
+            -ov \
+            -format UDZO \
+            "$DMG_PATH"
+
+          # Sign the DMG
+          codesign --force --sign "Developer ID Application" "$DMG_PATH"
+
+          # Notarize the DMG
+          xcrun notarytool submit "$DMG_PATH" \
+            --key "$RUNNER_TEMP/private_keys/AuthKey_${ASC_KEY_ID}.p8" \
+            --key-id "$ASC_KEY_ID" \
+            --issuer "$ASC_ISSUER_ID" \
+            --wait
+
+          # Staple the DMG
+          xcrun stapler staple "$DMG_PATH"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/${{ env.DMG_NAME }}
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+
+      - name: Cleanup keychain
+        if: always()
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+          if [ -f "$KEYCHAIN_PATH" ]; then
+            security delete-keychain "$KEYCHAIN_PATH"
+          fi

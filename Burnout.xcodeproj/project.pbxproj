@@ -256,9 +256,10 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = Burnout;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = CVAB7D2FJH;
-				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_DISPLAY_NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = Burnout;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ajaxjiang.Burnout;
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
@@ -271,9 +272,10 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = Burnout;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = CVAB7D2FJH;
-				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_DISPLAY_NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = Burnout;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ajaxjiang.Burnout;
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
