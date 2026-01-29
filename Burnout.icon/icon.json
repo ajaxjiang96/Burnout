@@ -138,20 +138,7 @@
               -122
             ]
           }
-        }
-      ],
-      "shadow" : {
-        "kind" : "none",
-        "opacity" : 0.5
-      },
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.5
-      }
-    },
-    {
-      "blur-material" : null,
-      "layers" : [
+        },
         {
           "blend-mode" : "soft-light",
           "glass" : false,
