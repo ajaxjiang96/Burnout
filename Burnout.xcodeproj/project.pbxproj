@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		8B90D1482DEDD44A00FBD189 /* BurnoutFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 8B90D1472DEDD44A00FBD189 /* BurnoutFeature */; };
+		AAF264D52F2B0A180051253E /* Burnout.icon in Resources */ = {isa = PBXBuildFile; fileRef = AAF264D42F2B0A180051253E /* Burnout.icon */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -23,6 +24,7 @@
 /* Begin PBXFileReference section */
 		8BC2655C2DEDD3F400F279A4 /* Burnout.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Burnout.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8BC265742DEDD3F500F279A4 /* Burnout.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Burnout.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AAF264D42F2B0A180051253E /* Burnout.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Burnout.icon; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -78,21 +80,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		8B90D1462DEDD44A00FBD189 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
 		8BC265532DEDD3F400F279A4 = {
 			isa = PBXGroup;
 			children = (
 				8B90D1BC2DEE373300FBD189 /* Config */,
 				8BC2655E2DEDD3F400F279A4 /* Burnout */,
 				8BC265772DEDD3F500F279A4 /* BurnoutUITests */,
-				8B90D1462DEDD44A00FBD189 /* Frameworks */,
 				8BC2655D2DEDD3F400F279A4 /* Products */,
+				AAF264D42F2B0A180051253E /* Burnout.icon */,
 			);
 			sourceTree = "<group>";
 		};
@@ -200,6 +195,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AAF264D52F2B0A180051253E /* Burnout.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -257,6 +253,8 @@
 			baseConfigurationReferenceAnchor = 8B90D1BC2DEE373300FBD189 /* Config */;
 			baseConfigurationReferenceRelativePath = Debug.xcconfig;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = Burnout;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = CVAB7D2FJH;
 				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_DISPLAY_NAME)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
@@ -270,6 +268,8 @@
 			baseConfigurationReferenceAnchor = 8B90D1BC2DEE373300FBD189 /* Config */;
 			baseConfigurationReferenceRelativePath = Release.xcconfig;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = Burnout;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = CVAB7D2FJH;
 				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_DISPLAY_NAME)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";

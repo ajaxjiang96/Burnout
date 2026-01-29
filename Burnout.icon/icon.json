@@ -1,0 +1,151 @@
+{
+  "fill" : {
+    "linear-gradient" : [
+      "display-p3:0.25277,0.29821,0.38213,1.00000",
+      "display-p3:0.11581,0.14603,0.21411,1.00000"
+    ],
+    "orientation" : {
+      "start" : {
+        "x" : 0.5,
+        "y" : 0
+      },
+      "stop" : {
+        "x" : 0.5,
+        "y" : 0.7
+      }
+    }
+  },
+  "groups" : [
+    {
+      "blur-material" : 0.5,
+      "layers" : [
+        {
+          "image-name" : "Frame-1.png",
+          "name" : "Frame-1",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              -6
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "none",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
+    {
+      "blur-material" : 0.5,
+      "layers" : [
+        {
+          "fill" : {
+            "linear-gradient" : [
+              "display-p3:0.97152,0.89233,0.61269,1.00000",
+              "display-p3:0.91108,0.51265,0.30055,1.00000"
+            ],
+            "orientation" : {
+              "start" : {
+                "x" : 0.5,
+                "y" : 0.15641121380347817
+              },
+              "stop" : {
+                "x" : 0.6571971972986062,
+                "y" : 0.7775493123102271
+              }
+            }
+          },
+          "image-name" : "Frame.png",
+          "name" : "Frame"
+        },
+        {
+          "fill-specializations" : [
+            {
+              "appearance" : "tinted",
+              "value" : {
+                "solid" : "display-p3:0.95953,1.00000,0.96878,1.00000"
+              }
+            }
+          ],
+          "image-name" : "Frame-4.png",
+          "name" : "Frame-4",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              15.304878503460827,
+              17.656301885394157
+            ]
+          }
+        },
+        {
+          "image-name" : "Frame-2.png",
+          "name" : "Frame-2",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              15.304878503460827,
+              17.656301885394157
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
+    {
+      "blur-material" : 1,
+      "layers" : [
+        {
+          "blend-mode" : "normal",
+          "image-name" : "Frame-3.png",
+          "name" : "Frame-3"
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 1
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
+    {
+      "blur-material" : null,
+      "layers" : [
+        {
+          "blend-mode" : "soft-light",
+          "glass" : false,
+          "image-name" : "Frame 2.png",
+          "name" : "Frame 2"
+        }
+      ],
+      "shadow" : {
+        "kind" : "none",
+        "opacity" : 0.5
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 1
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}
