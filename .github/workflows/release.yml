@@ -115,7 +115,9 @@ jobs:
             -archivePath "$ARCHIVE_PATH" \
             -clonedSourcePackagesDirPath build/SourcePackages \
             MARKETING_VERSION="$VERSION" \
-            CURRENT_PROJECT_VERSION="${{ github.run_number }}"
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Developer ID Application"
 
       - name: Export archive
         run: |
