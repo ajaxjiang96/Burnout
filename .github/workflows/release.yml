@@ -117,7 +117,8 @@ jobs:
             MARKETING_VERSION="$VERSION" \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Developer ID Application"
+            CODE_SIGN_IDENTITY="Developer ID Application" \
+            ENABLE_HARDENED_RUNTIME=YES
 
       - name: Export archive
         run: |
@@ -137,12 +138,30 @@ jobs:
           # Create zip for notarization
           ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
 
-          # Submit for notarization and wait
-          xcrun notarytool submit "$ZIP_PATH" \
+          # Submit for notarization and wait, capturing the submission ID
+          SUBMIT_OUTPUT=$(xcrun notarytool submit "$ZIP_PATH" \
             --key "$RUNNER_TEMP/private_keys/AuthKey_${ASC_KEY_ID}.p8" \
             --key-id "$ASC_KEY_ID" \
             --issuer "$ASC_ISSUER_ID" \
-            --wait
+            --wait 2>&1) || true
+          echo "$SUBMIT_OUTPUT"
+
+          # Extract submission ID
+          SUBMISSION_ID=$(echo "$SUBMIT_OUTPUT" | grep "id:" | head -1 | awk '{print $2}')
+
+          # Check if notarization succeeded
+          if echo "$SUBMIT_OUTPUT" | grep -q "status: Accepted"; then
+            echo "Notarization succeeded!"
+          else
+            echo "Notarization failed. Fetching log..."
+            xcrun notarytool log "$SUBMISSION_ID" \
+              --key "$RUNNER_TEMP/private_keys/AuthKey_${ASC_KEY_ID}.p8" \
+              --key-id "$ASC_KEY_ID" \
+              --issuer "$ASC_ISSUER_ID" \
+              developer_log.json || true
+            cat developer_log.json || true
+            exit 1
+          fi
 
           # Staple the notarization ticket
           xcrun stapler staple "$APP_PATH"

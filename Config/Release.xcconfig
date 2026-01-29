@@ -4,5 +4,5 @@
 
 #include "Shared.xcconfig"
 
-// No additional release-specific overrides needed
-// All release settings use Xcode project defaults
+// Required for macOS notarization
+ENABLE_HARDENED_RUNTIME = YES
