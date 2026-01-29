@@ -107,6 +107,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
+          set -o pipefail
           xcodebuild archive \
             -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
@@ -114,16 +115,14 @@ jobs:
             -archivePath "$ARCHIVE_PATH" \
             -clonedSourcePackagesDirPath build/SourcePackages \
             MARKETING_VERSION="$VERSION" \
-            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
-            | xcpretty || true
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}"
 
       - name: Export archive
         run: |
           xcodebuild -exportArchive \
             -archivePath "$ARCHIVE_PATH" \
             -exportOptionsPlist ExportOptions.plist \
-            -exportPath "$EXPORT_PATH" \
-            | xcpretty || true
+            -exportPath "$EXPORT_PATH"
 
       - name: Notarize app
         env:

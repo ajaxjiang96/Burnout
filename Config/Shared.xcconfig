@@ -18,6 +18,11 @@ CURRENT_PROJECT_VERSION = 1
 MACOSX_DEPLOYMENT_TARGET = 26.0
 
 // ==========================================
+// Build Settings
+// ==========================================
+ALWAYS_SEARCH_USER_PATHS = NO
+
+// ==========================================
 // Info PLIST
 // ==========================================
 GENERATE_INFOPLIST_FILE = YES
