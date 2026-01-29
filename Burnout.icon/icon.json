@@ -20,6 +20,7 @@
       "blur-material" : 0.5,
       "layers" : [
         {
+          "hidden" : false,
           "image-name" : "Frame-1.png",
           "name" : "Frame-1",
           "position" : {
@@ -31,6 +32,7 @@
           }
         }
       ],
+      "name" : "Group",
       "shadow" : {
         "kind" : "none",
         "opacity" : 0.5
@@ -98,6 +100,7 @@
         "kind" : "neutral",
         "opacity" : 0.5
       },
+      "specular" : false,
       "translucency" : {
         "enabled" : true,
         "value" : 0.5
@@ -116,6 +119,31 @@
         "kind" : "neutral",
         "opacity" : 1
       },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 1
+      }
+    },
+    {
+      "blur-material" : null,
+      "layers" : [
+        {
+          "image-name" : "Frame-1.png",
+          "name" : "Frame-1",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              -100,
+              -122
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "none",
+        "opacity" : 0.5
+      },
       "translucency" : {
         "enabled" : true,
         "value" : 0.5
@@ -128,7 +156,14 @@
           "blend-mode" : "soft-light",
           "glass" : false,
           "image-name" : "Frame 2.png",
-          "name" : "Frame 2"
+          "name" : "Frame 2",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
         }
       ],
       "shadow" : {
