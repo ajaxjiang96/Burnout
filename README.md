@@ -1,171 +1,75 @@
 <img src="docs/icon.png" width="128" align="center" />
 
-# Burnout - macOS App
+# Burnout
 
-A modern macOS application using a **workspace + SPM package** architecture for clean separation between app shell and feature code.
+A native macOS menu bar app that shows your Claude.ai usage at a glance — session and weekly utilization percentages, time until reset, and visual warnings when you're close to the limit.
 
-## Project Architecture
+## Features
 
-```
-Burnout/
-├── Burnout.xcworkspace/              # Open this file in Xcode
-├── Burnout.xcodeproj/                # App shell project
-├── Burnout/                          # App target (minimal)
-│   ├── Assets.xcassets/                # App-level assets (icons, colors)
-│   ├── BurnoutApp.swift              # App entry point
-│   ├── Burnout.entitlements          # App sandbox settings
-│   └── Burnout.xctestplan            # Test configuration
-├── BurnoutPackage/                   # 🚀 Primary development area
-│   ├── Package.swift                   # Package configuration
-│   ├── Sources/BurnoutFeature/       # Your feature code
-│   └── Tests/BurnoutFeatureTests/    # Unit tests
-└── BurnoutUITests/                   # UI automation tests
-```
+- **Live usage display** — session (5-hour) and weekly (7-day) utilization from Claude.ai
+- **Menu bar percentage** — always-visible usage percentage with configurable icon style (gauge or flame)
+- **Reset countdown** — shows time remaining until rate limit resets when usage is high
+- **Visual warnings** — icon changes at 50% and 90% thresholds
+- **Auto-refresh** — polls every 60 seconds
 
-## Key Architecture Points
+## Requirements
 
-### Workspace + SPM Structure
+- macOS 26 (Tahoe) or later
+- A Claude.ai account with an active subscription
 
-- **App Shell**: `Burnout/` contains minimal app lifecycle code
-- **Feature Code**: `BurnoutPackage/Sources/BurnoutFeature/` is where most development happens
-- **Separation**: Business logic lives in the SPM package, app target just imports and displays it
+## Installation
 
-### Buildable Folders (Xcode 16)
+### Download
 
-- Files added to the filesystem automatically appear in Xcode
-- No need to manually add files to project targets
-- Reduces project file conflicts in teams
+Download the latest `.dmg` from the [Releases](../../releases) page. Open it and drag Burnout to your Applications folder.
 
-### App Sandbox
+### Build from Source
 
-The app is sandboxed by default with basic file access permissions. Modify `Burnout.entitlements` to add capabilities as needed.
-
-## Development Notes
-
-### Code Organization
-
-Most development happens in `BurnoutPackage/Sources/BurnoutFeature/` - organize your code as you prefer.
-
-### Public API Requirements
-
-Types exposed to the app target need `public` access:
-
-```swift
-public struct SettingsView: View {
-    public init() {}
-
-    public var body: some View {
-        // Your view code
-    }
-}
+```bash
+git clone https://github.com/ajayyy/Burnout.git
+cd Burnout
+open Burnout.xcworkspace
 ```
 
-### Adding Dependencies
+Build and run the **Burnout** scheme in Xcode 26+.
 
-Edit `BurnoutPackage/Package.swift` to add SPM dependencies:
+## Setup
 
-```swift
-dependencies: [
-    .package(url: "https://github.com/example/SomePackage", from: "1.0.0")
-],
-targets: [
-    .target(
-        name: "BurnoutFeature",
-        dependencies: ["SomePackage"]
-    ),
-]
-```
+Burnout needs two credentials from your Claude.ai session:
 
-### Test Structure
+1. Go to [claude.ai/settings](https://claude.ai/settings) and open Developer Tools (`Cmd+Option+I`)
+2. Go to **Network** tab and navigate to the Usage page
+3. Find the `usage` request — copy the **Organization ID** (UUID in the URL path)
+4. Go to **Application > Cookies > claude.ai** — copy the `sessionKey` value
+5. Open Burnout's **Settings** (click the menu bar icon, then Settings) and paste both values
 
-- **Unit Tests**: `BurnoutPackage/Tests/BurnoutFeatureTests/` (Swift Testing framework)
-- **UI Tests**: `BurnoutUITests/` (XCUITest framework)
-- **Test Plan**: `Burnout.xctestplan` coordinates all tests
+> **Note:** Session keys expire periodically. You'll need to update the key when it expires.
 
-## Configuration
+## Architecture
 
-### XCConfig Build Settings
+The app uses a **workspace + SPM package** structure:
 
-Build settings are managed through **XCConfig files** in `Config/`:
+- **`Burnout/`** — minimal app shell (`BurnoutApp.swift`, assets, entitlements)
+- **`BurnoutPackage/`** — all business logic as a Swift Package
+  - `Models/` — `ClaudeWebUsage` API response model
+  - `Services/` — `UsageServiceProtocol` and `ClaudeUsageService`
+  - `ViewModels/` — `UsageViewModel` (central state, @MainActor)
+  - `ContentView.swift` — menu bar popup UI
+  - `SettingsView.swift` — credentials and display preferences
 
-- `Config/Shared.xcconfig` - Common settings (bundle ID, versions, deployment target)
-- `Config/Debug.xcconfig` - Debug-specific settings
-- `Config/Release.xcconfig` - Release-specific settings
-- `Config/Tests.xcconfig` - Test-specific settings
+Data flows from the Claude.ai usage API through `ClaudeUsageService` into `UsageViewModel`, which drives the SwiftUI views.
 
-### App Sandbox & Entitlements
+## Contributing
 
-The app is sandboxed by default with basic file access. Edit `Burnout/Burnout.entitlements` to add capabilities:
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding conventions, and how to submit changes.
 
-```xml
-<key>com.apple.security.files.user-selected.read-write</key>
-<true/>
-<key>com.apple.security.network.client</key>
-<true/>
-<!-- Add other entitlements as needed -->
-```
+## License
 
-## macOS-Specific Features
+Burnout is licensed under the [GNU General Public License v3.0](LICENSE).
 
-### Window Management
+This means:
+- You can use, modify, and distribute this software freely
+- Any derivative work must also be released under GPL-3.0
+- The GPL-3.0 is incompatible with Apple's App Store DRM, so forks cannot be redistributed via the App Store without a separate license grant from the copyright holder
 
-Add multiple windows and settings panels:
-
-```swift
-@main
-struct BurnoutApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
-
-        Settings {
-            SettingsView()
-        }
-    }
-}
-```
-
-### Asset Management
-
-- **App-Level Assets**: `Burnout/Assets.xcassets/` (app icon with multiple sizes, accent color)
-- **Feature Assets**: Add `Resources/` folder to SPM package if needed
-
-### SPM Package Resources
-
-To include assets in your feature package:
-
-```swift
-.target(
-    name: "BurnoutFeature",
-    dependencies: [],
-    resources: [.process("Resources")]
-)
-```
-
-## Notes
-
-### Generated with XcodeBuildMCP
-
-This project was scaffolded using [XcodeBuildMCP](https://github.com/cameroncooke/XcodeBuildMCP), which provides tools for AI-assisted macOS development workflows.
-
-- **App-Level Assets**: `Burnout/Assets.xcassets/` (app icon with multiple sizes, accent color)
-- **Feature Assets**: Add `Resources/` folder to SPM package if needed
-
-### SPM Package Resources
-
-To include assets in your feature package:
-
-```swift
-.target(
-    name: "BurnoutFeature",
-    dependencies: [],
-    resources: [.process("Resources")]
-)
-```
-
-## Notes
-
-### Generated with XcodeBuildMCP
-
-This project was scaffolded using [XcodeBuildMCP](https://github.com/cameroncooke/XcodeBuildMCP), which provides tools for AI-assisted macOS development workflows.
+Copyright (C) 2025 Jiacheng Jiang

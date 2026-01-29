@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import os
 
 public enum MenuBarIcon: String, CaseIterable, Identifiable {
     case gauge = "Gauge"
@@ -41,6 +42,7 @@ public enum DisplayedUsage: String, CaseIterable, Identifiable {
 
 @MainActor
 public class UsageViewModel: ObservableObject {
+    private static let logger = Logger(subsystem: "com.ajax.Burnout", category: "UsageViewModel")
     @Published public var lastUpdated: Date = Date()
     @Published public var error: String? = nil
 
@@ -109,7 +111,7 @@ public class UsageViewModel: ObservableObject {
                 self.lastUpdated = Date()
                 self.error = nil
             } catch {
-                print("Usage refresh error: \(error)")
+                Self.logger.error("Usage refresh failed: \(error)")
                 self.error = error.localizedDescription
             }
         }

@@ -4,9 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Burnout is a native macOS status bar app that displays real-time Claude Code (and Gemini) usage statistics. It shows the current usage percentage, rate limits, and time until reset in the menu bar. The app reads from Claude Code's local stats cache and can also fetch live rate limit data via API.
-
-**Current State**: The app structure exists but requires implementation. The GeminiUsageService is a placeholder. The app uses Xcode 26's workspace + SPM package architecture.
+Burnout is a native macOS menu bar app that displays real-time Claude.ai usage statistics. It shows the current usage percentage, rate limits, and time until reset directly in the menu bar. The app fetches data from the Claude.ai web usage API.
 
 ## Development Commands
 
@@ -37,37 +35,32 @@ The project uses Swift Testing framework (not XCTest) for unit tests in `Burnout
 ```
 BurnoutPackage/Sources/BurnoutFeature/
 ├── Models/
-│   ├── ClaudeStats.swift        # Stats cache JSON structure
-│   └── RateLimitInfo.swift      # API rate limit data model
+│   └── ClaudeWebUsage.swift     # Web usage API response model
 ├── Services/
-│   ├── UsageService.swift       # Service protocol & ClaudeUsageService
-│   └── GeminiUsageService.swift # Placeholder for Gemini support
+│   └── UsageService.swift       # Service protocol & ClaudeUsageService
 ├── ViewModels/
 │   └── UsageViewModel.swift     # Main app state & business logic
-└── ContentView.swift             # StatusView UI (menu bar popup)
+├── ContentView.swift            # StatusView UI (menu bar popup)
+└── SettingsView.swift           # Settings window (credentials, display options)
 ```
 
 ### Key Architecture Patterns
 
 **MVVM with Services Layer**:
 - `UsageViewModel` is the central state holder (@MainActor, ObservableObject)
-- Services conform to `UsageServiceProtocol` for provider abstraction
-- Two data sources: local stats cache (`~/.claude/stats-cache.json`) and live API rate limits
+- `ClaudeUsageService` conforms to `UsageServiceProtocol` for testability
+- Single data source: Claude.ai web usage API
 
 **MenuBarExtra App**:
 - Uses `MenuBarExtra` scene (not `WindowGroup`)
-- Status bar shows dynamic icon (flame → flame.fill → warning triangle) and percentage/countdown
+- Status bar shows dynamic icon (gauge or flame, configurable) and percentage/countdown
 - Clicking opens a popup window with detailed stats
-
-**Provider Abstraction**:
-- `ProviderType` enum supports Claude and Gemini
-- `UsageServiceProtocol` defines interface for both providers
-- ViewModel switches service implementation based on selected provider
+- Settings window via `Settings` scene
 
 **Data Flow**:
-1. ViewModel calls service methods
-2. `ClaudeUsageService` reads `~/.claude/stats-cache.json` for daily/weekly message counts
-3. If API key provided, service makes lightweight API call to fetch rate limit headers
+1. ViewModel calls `ClaudeUsageService.fetchWebUsage(sessionKey:organizationId:)`
+2. Service fetches from `https://claude.ai/api/organizations/{orgId}/usage`
+3. Response decoded into `ClaudeWebUsage` (contains `fiveHour` and `sevenDay` `UsageWindow` structs)
 4. ViewModel updates @Published properties, UI reacts automatically
 5. Auto-refreshes every 60 seconds
 
@@ -76,21 +69,7 @@ BurnoutPackage/Sources/BurnoutFeature/
 All types used by the app target must be `public` since they're in a separate SPM package:
 - Views: `public struct StatusView: View { public init(...) { } }`
 - ViewModels: `public class UsageViewModel: ObservableObject { }`
-- Models: `public struct ClaudeStats: Codable { }`
-
-## Data Sources
-
-### Local Stats Cache
-- Location: `~/.claude/stats-cache.json`
-- Structure: See `ClaudeStats` model
-- Contains: daily message counts, session counts, tool call counts
-- Updated by: Claude Code CLI
-
-### API Rate Limits (Optional)
-- Endpoint: `https://api.anthropic.com/v1/messages` (HEAD request pattern)
-- Headers: `anthropic-ratelimit-*` headers contain limits/remaining/reset times
-- Current implementation: Makes minimal POST request to get headers (1 token response)
-- Shows: requests remaining, tokens remaining, reset times
+- Models: `public struct ClaudeWebUsage: Codable, Sendable, Equatable { }`
 
 ## Configuration
 
@@ -99,15 +78,14 @@ Location: `Config/Burnout.entitlements`
 
 Currently configured:
 - App Sandbox: **DISABLED** (`com.apple.security.app-sandbox` = false)
-  - Required to read `~/.claude/stats-cache.json` outside sandbox
 - Network client: Enabled for API calls
 - File access: Read-only user-selected files
 
-**Important**: The sandbox is disabled to access the stats cache file. This is necessary for the app's core functionality.
+**Important**: The sandbox is disabled because sandboxed apps cannot make authenticated requests to claude.ai with cookies.
 
 ### Build Settings
 XCConfig files in `Config/`:
-- `Shared.xcconfig`: Bundle ID, versions, deployment target (macOS 15.4)
+- `Shared.xcconfig`: Bundle ID (`com.ajax.Burnout`), versions, deployment target (macOS 26.0)
 - `Debug.xcconfig`: Debug-specific settings
 - `Release.xcconfig`: Release-specific settings
 - `Tests.xcconfig`: Test target settings
@@ -115,32 +93,38 @@ XCConfig files in `Config/`:
 ## Implementation Notes
 
 ### Status Bar Icon Logic
-The menu bar icon changes based on usage percentage:
-- 0-50%: `flame` (hollow)
-- 50-90%: `flame.fill` (solid)
-- 90%+: `exclamationmark.triangle.fill` (warning)
+The menu bar icon style is configurable (Gauge or Flame). Each changes based on usage:
+- **Gauge**: `gauge.with.dots.needle.bottom.0percent` / `50percent` / `100percent`
+- **Flame**: `flame` → `flame.fill` → `exclamationmark.triangle.fill`
 
-When usage > 90% and rate limit info available, shows countdown timer instead of percentage.
+Thresholds: 0-50% (low), 50-90% (medium), 90%+ (high).
 
-### Rate Limit Display Strategy
-- If API key provided: Shows actual rate limit data (requests/tokens remaining)
-- If no API key: Shows simple message count vs daily limit
-- Usage percentage prioritizes the more restrictive limit (requests vs tokens)
+When usage > 90% and reset time available, shows countdown timer instead of percentage.
+
+### Display Options
+Users can choose which usage metric to display:
+- **Highest**: Maximum of session and weekly utilization
+- **Session (5h)**: Five-hour rolling window
+- **Weekly (7d)**: Seven-day rolling window
 
 ### Error Handling
-- Invalid API key → Shows "Invalid API Key" error message
-- Missing stats file → Returns zero counts (graceful degradation)
+- Missing credentials → Shows empty state prompting to open Settings
+- Session expired (401/403) → Shows "Session expired" error
 - Network errors → Displays localized error description
 
 ### User Settings Persistence
-- API key stored in `UserDefaults` with key `"burnout_api_key"`
-- Automatically trimmed of whitespace on save
-- Daily limit stored in ViewModel (not persisted yet)
+All settings stored in `UserDefaults`:
+- `burnout_session_key`: Claude.ai session key (cookie value)
+- `burnout_org_id`: Organization UUID from Claude.ai
+- `burnout_displayed_usage`: Which usage metric to show (Highest/Session/Weekly)
+- `burnout_menu_bar_icon`: Icon style (Gauge/Flame)
 
-## Future Work / Incomplete Features
+### Logging
+Uses `os.Logger` (not `print()`). Subsystem: `com.ajax.Burnout`. Categories: `App`, `UsageService`, `UsageViewModel`.
 
-1. **GeminiUsageService**: Currently returns placeholder data
-2. **Persistence**: Daily limit and provider selection not saved to UserDefaults
-3. **Stats cache auto-discovery**: Hardcoded path to `~/.claude/stats-cache.json`
-4. **Rate limit caching**: Makes API call on every refresh (could cache for ~5 min)
-5. **Error recovery**: Could auto-clear API key on persistent auth failures
+## Future Work
+
+1. **Keychain storage**: Credentials currently in UserDefaults (plain text); migrate to Keychain
+2. **Response caching**: Cache API responses to reduce request frequency
+3. **Multiple accounts**: Support monitoring multiple Claude.ai organizations
+4. **Notifications**: Alert when usage approaches limits

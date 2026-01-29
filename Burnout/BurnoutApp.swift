@@ -1,12 +1,14 @@
 import SwiftUI
 import BurnoutFeature
+import os
 
 @main
 struct BurnoutApp: App {
     @StateObject private var viewModel = UsageViewModel()
+    private static let logger = Logger(subsystem: "com.ajax.Burnout", category: "App")
 
     init() {
-        print("BurnoutApp Launching...")
+        Self.logger.info("BurnoutApp launching")
     }
 
     var body: some Scene {

@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 public enum WebUsageError: Error, LocalizedError {
     case invalidCredentials
@@ -25,6 +26,8 @@ public protocol UsageServiceProtocol: Sendable {
 }
 
 public final class ClaudeUsageService: UsageServiceProtocol, Sendable {
+    private static let logger = Logger(subsystem: "com.ajax.Burnout", category: "UsageService")
+
     public init() {}
 
     public func fetchWebUsage(sessionKey: String, organizationId: String) async throws -> ClaudeWebUsage {
@@ -87,7 +90,7 @@ public final class ClaudeUsageService: UsageServiceProtocol, Sendable {
         do {
             return try decoder.decode(ClaudeWebUsage.self, from: data)
         } catch {
-            print("Decoding error: \(error)")
+            Self.logger.error("Failed to decode web usage response: \(error)")
             throw WebUsageError.invalidResponse
         }
     }
