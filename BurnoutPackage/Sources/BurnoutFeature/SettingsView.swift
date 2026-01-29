@@ -69,6 +69,9 @@ public struct SettingsView: View {
                 LabeledContent("License") {
                     Text("GPL-3.0")
                 }
+                LabeledContent("GitHub") {
+                    Link("ajaxjiang96/Burnout", destination: URL(string: "https://github.com/ajaxjiang96/Burnout")!)
+                }
                 HStack {
                     Spacer()
                     Link(destination: URL(string: "https://buymeacoffee.com/ajaxjiang")!) {
