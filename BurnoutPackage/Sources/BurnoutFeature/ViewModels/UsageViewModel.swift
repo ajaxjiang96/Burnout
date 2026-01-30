@@ -258,7 +258,7 @@ public class UsageViewModel: ObservableObject {
         guard let bucket = proBucket else {
             // Fallback if no Pro model found? Use max?
             // For now, let's fallback to max usage if pro isn't found, or just show 0%
-            return MenuBarDisplayItem(icon: "sparkles", text: "N/A", color: .secondary)
+            return MenuBarDisplayItem(icon: "sparkle", text: "N/A", color: .secondary)
         }
         
         let percentage = bucket.usagePercentage
@@ -280,7 +280,7 @@ public class UsageViewModel: ObservableObject {
             color = self.color(for: percentage / 100.0)
         }
         
-        return MenuBarDisplayItem(icon: "sparkles", text: text, color: color)
+        return MenuBarDisplayItem(icon: "sparkle", text: text, color: color)
     }
 
     private func startPolling() {

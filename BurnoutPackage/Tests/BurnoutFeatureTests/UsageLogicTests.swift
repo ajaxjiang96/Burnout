@@ -44,7 +44,7 @@ struct UsageLogicTests {
         let displayItem = vm.activeDisplayItem
         
         #expect(displayItem != nil)
-        #expect(displayItem?.icon == "sparkles", "Should show Gemini icon (sparkles) but showed \(displayItem?.icon ?? "nil")")
+        #expect(displayItem?.icon == "sparkle", "Should show Gemini icon (sparkle) but showed \(displayItem?.icon ?? "nil")")
         #expect(displayItem?.text == "50%", "Should show Gemini usage")
     }
 

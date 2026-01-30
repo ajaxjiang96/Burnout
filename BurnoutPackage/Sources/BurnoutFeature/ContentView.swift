@@ -127,7 +127,7 @@ public struct StatusView: View {
     @ViewBuilder
     private var geminiSection: some View {
         if let _ = viewModel.geminiUsage {
-            UsageSection(title: "Gemini CLI Quota", systemImage: "sparkles") {
+            UsageSection(title: "Gemini CLI Quota", systemImage: "sparkle") {
                 VStack(spacing: 12) {
                     ForEach(viewModel.simplifiedGeminiBuckets) { bucket in
                         GeminiUsageRow(bucket: bucket, viewModel: viewModel)

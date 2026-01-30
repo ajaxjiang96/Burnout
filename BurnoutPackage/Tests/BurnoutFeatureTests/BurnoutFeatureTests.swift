@@ -105,7 +105,7 @@ struct UsageViewModelTests {
             return
         }
         
-        #expect(item.icon == "sparkles")
+        #expect(item.icon == "")
         // Usage is (1 - 0.25) * 100 = 75%
         #expect(item.text == "75%")
     }
