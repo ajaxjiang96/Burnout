@@ -1,31 +1,37 @@
 import Foundation
 
 public struct GeminiModelUsage: Codable, Sendable, Equatable, Identifiable {
-    public let name: String
-    public let requests: Int
-    public let usagePercentage: Double
-    public let resetsIn: String
+    public let modelId: String
+    public let tokenType: String
+    public let remainingAmount: String?
+    public let remainingFraction: Double
+    public let resetTime: String
     
-    public var id: String { name }
+    public var id: String { "\(modelId)-\(tokenType)" }
     
-    public init(name: String, requests: Int, usagePercentage: Double, resetsIn: String) {
-        self.name = name
-        self.requests = requests
-        self.usagePercentage = usagePercentage
-        self.resetsIn = resetsIn
+    public var usagePercentage: Double {
+        (1.0 - remainingFraction) * 100.0
+    }
+    
+    public init(modelId: String, tokenType: String, remainingAmount: String?, remainingFraction: Double, resetTime: String) {
+        self.modelId = modelId
+        self.tokenType = tokenType
+        self.remainingAmount = remainingAmount
+        self.remainingFraction = remainingFraction
+        self.resetTime = resetTime
     }
 }
 
 public struct GeminiUsage: Codable, Sendable, Equatable {
-    public let models: [GeminiModelUsage]
+    public let buckets: [GeminiModelUsage]
     public let lastUpdated: Date
     
-    public init(models: [GeminiModelUsage], lastUpdated: Date) {
-        self.models = models
+    public init(buckets: [GeminiModelUsage], lastUpdated: Date) {
+        self.buckets = buckets
         self.lastUpdated = lastUpdated
     }
     
     public var maxUsagePercentage: Double {
-        models.map(\.usagePercentage).max() ?? 0
+        buckets.map(\.usagePercentage).max() ?? 0
     }
 }

@@ -80,17 +80,6 @@ public class UsageViewModel: ObservableObject {
         }
     }
 
-    @Published public var geminiExecutablePath: String = UserDefaults.standard.string(forKey: "burnout_gemini_executable_path")?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" {
-        didSet {
-            let cleanPath = geminiExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines)
-            if cleanPath != geminiExecutablePath {
-                geminiExecutablePath = cleanPath
-            }
-            UserDefaults.standard.set(cleanPath, forKey: "burnout_gemini_executable_path")
-            refresh()
-        }
-    }
-
     @Published public var webUsage: ClaudeWebUsage? = nil
     @Published public var geminiUsage: GeminiUsage? = nil
 
@@ -100,14 +89,6 @@ public class UsageViewModel: ObservableObject {
     public init() {
         self.service = ClaudeUsageService()
         self.geminiService = GeminiUsageService()
-        
-        // Migrate legacy setting if needed
-        if let legacyPath = UserDefaults.standard.string(forKey: "burnout_gemini_log_path"), geminiExecutablePath.isEmpty {
-            // Only migrate if it looks like an executable, not a log file
-            if !legacyPath.hasSuffix(".log") && !legacyPath.hasSuffix(".json") {
-                 geminiExecutablePath = legacyPath
-            }
-        }
         
         refresh()
         startPolling()
@@ -143,10 +124,10 @@ public class UsageViewModel: ObservableObject {
                     }
                 }
                 
-                if hasGeminiConfig {
+                if hasGeminiCredentials {
                     group.addTask {
                         do {
-                            let gUsage = try await self.geminiService.fetchUsage(executablePath: self.geminiExecutablePath)
+                            let gUsage = try await self.geminiService.fetchUsage()
                             await MainActor.run { self.geminiUsage = gUsage }
                         } catch {
                             Self.logger.error("Gemini usage refresh failed: \(error)")
@@ -170,15 +151,17 @@ public class UsageViewModel: ObservableObject {
     }
     
     public var hasCredentials: Bool {
-        hasClaudeCredentials || hasGeminiConfig
+        hasClaudeCredentials || hasGeminiCredentials
     }
 
     public var hasClaudeCredentials: Bool {
         !sessionKey.isEmpty && !organizationId.isEmpty
     }
     
-    public var hasGeminiConfig: Bool {
-        !geminiExecutablePath.isEmpty
+    public var hasGeminiCredentials: Bool {
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser
+        let credsPath = homeDir.appendingPathComponent(".gemini/oauth_creds.json")
+        return FileManager.default.fileExists(atPath: credsPath.path)
     }
 
     public var usagePercentage: Double {

@@ -61,11 +61,20 @@ public struct SettingsView: View {
             }
             
             Section {
-                TextField(
-                    "Gemini Executable Path", text: $viewModel.geminiExecutablePath,
-                    prompt: Text("/usr/local/bin/gemini")
-                )
-                .font(.system(.body, design: .monospaced))
+                if viewModel.hasGeminiCredentials {
+                    LabeledContent("Status") {
+                        Label("Credentials found", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    }
+                } else {
+                    LabeledContent("Status") {
+                        Label("Not authenticated", systemImage: "xmark.circle.fill")
+                            .foregroundStyle(.red)
+                    }
+                    Text("Run 'gemini auth login' in your terminal to enable.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             } header: {
                 HStack {
                     Text("Gemini CLI")
@@ -79,9 +88,9 @@ public struct SettingsView: View {
                     }
                 }
             } footer: {
-                if viewModel.hasGeminiConfig {
+                if viewModel.hasGeminiCredentials {
                     if viewModel.geminiUsage != nil {
-                        Label("Gemini CLI connected", systemImage: "checkmark.circle.fill")
+                        Label("Connected", systemImage: "checkmark.circle.fill")
                             .foregroundStyle(.green)
                             .font(.caption)
                     } else if let error = viewModel.error, error.contains("Gemini") {
@@ -148,18 +157,18 @@ public struct SettingsView: View {
                 .font(.headline)
             
             VStack(alignment: .leading, spacing: 8) {
-                Text("Locate your Gemini CLI executable:")
+                Text("Authenticate with Gemini CLI:")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
-                Text("which gemini")
+                Text("gemini auth login")
                     .font(.system(.caption, design: .monospaced))
                     .padding(8)
                     .background(Color.black.opacity(0.1))
                     .cornerRadius(4)
                     .textSelection(.enabled)
                 
-                Text("Copy the path (e.g., /usr/local/bin/gemini) and paste it below.")
+                Text("This creates the necessary credentials file.")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

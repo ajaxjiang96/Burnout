@@ -5,7 +5,7 @@
 **Module:** `BurnoutFeature`
 
 ## Overview
-The Gemini CLI integration has been implemented to allow *Burnout* to display usage statistics from the Google Gemini CLI alongside Claude.ai stats. This integration functions by executing the `gemini stats session` command locally on the user's machine and parsing the standard output.
+The Gemini CLI integration has been reimplemented to allow *Burnout* to display usage statistics from the Google Gemini CLI alongside Claude.ai stats. The integration now directly queries the internal Google Cloud Code Private API (`retrieveUserQuota`) using the user's local Gemini CLI credentials, offering a more robust and faster solution than shelling out to the binary.
 
 ## Architecture
 
@@ -13,42 +13,48 @@ The Gemini CLI integration has been implemented to allow *Burnout* to display us
 - **Protocol:** `GeminiUsageServiceProtocol`
 - **Implementation:** `GeminiUsageService`
 - **Mechanism:**
-  - Uses `Foundation.Process` to execute shell commands.
-  - Wraps execution in `zsh -l -c` to ensure the user's shell environment (specifically `PATH` for Node.js) is loaded.
-  - **Path Handling:** Handles escaping of spaces in paths and implicit `node` executable resolution.
-  - **Concurrency:** Reads `stdout` and `stderr` asynchronously using `Task` to prevent pipe deadlocks on large outputs.
-  - **Timeout:** Defaults to 45 seconds to accommodate slow shell startups.
+  - **Credentials:** Reads OAuth 2.0 credentials directly from `~/.gemini/oauth_creds.json`.
+  - **API:** Sends a POST request to `https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota`.
+  - **Authentication:** Uses the access token from the local credentials file.
+  - **Payload:** Sends a placeholder project ID (`gemini-cli-placeholder`) which allows retrieving user-specific quota without needing a specific GCP project ID (for Pro/Advanced subscriptions).
+  - **Dependencies:** Uses `URLSession` for network requests, allowing for easy testing via dependency injection.
 
 ### 2. Data Models (`GeminiUsage.swift`)
-- `GeminiUsage`: Aggregates usage across all models.
-- `GeminiModelUsage`: Individual stats for models (e.g., `gemini-2.5-flash-lite`), including request count, percentage, and reset time.
+- **GeminiUsage:**
+  - `buckets`: List of `GeminiModelUsage` items.
+  - `lastUpdated`: Timestamp of the fetch.
+- **GeminiModelUsage:**
+  - `modelId`: Identifier (e.g., `gemini-1.5-pro`).
+  - `tokenType`: Type of quota (e.g., `requests_per_minute`).
+  - `remainingAmount`: String indicating remaining quota units.
+  - `remainingFraction`: Double (0.0 - 1.0) indicating remaining percentage.
+  - `resetTime`: ISO 8601 timestamp for quota reset.
 
 ### 3. State Management (`UsageViewModel.swift`)
-- Manages `geminiExecutablePath` in `UserDefaults`.
-- Polls for updates concurrently with Claude.ai stats.
-- Aggregates usage percentages to determine the highest usage for the menu bar icon (Gauge/Flame).
-- Error handling specific to Gemini (e.g., timeouts, missing executable).
+- **Credential Detection:** Automatically detects if `~/.gemini/oauth_creds.json` exists via `hasGeminiCredentials`.
+- **Logic:** Removed all code related to managing the executable path.
+- **Polling:** Fetches usage data concurrently with Claude.ai stats.
 
 ### 4. User Interface
-- **Settings:** New section to input/paste the `gemini` executable path. Includes a help popover with instructions (`which gemini`).
-- **Dashboard:** Displays a distinct "Gemini CLI Usage" card with per-model progress bars and reset timers.
+- **Settings:**
+  - Removed "Gemini Executable Path" input field.
+  - Added a status section indicating if credentials are found or missing.
+  - Improved help text instructing users to run `gemini auth login` if unauthenticated.
+- **Dashboard:**
+  - Displays "Gemini CLI Quota" with per-model stats.
+  - Shows **remaining** quota (e.g., "45 left") and usage percentage bars.
+  - Displays relative reset time (e.g., "in 5h").
 
-## Recent Fixes & Improvements
-- **Timeout/Deadlock Fix:** Previously, the service would time out (25s) or hang if the CLI output filled the pipe buffer. This was resolved by:
-  1. Increasing timeout to 45s.
-  2. Consuming `stdout` and `stderr` streams concurrently via `Task`.
-- **Bundle ID Standardization:** Updated all references to `com.ajaxjiang.Burnout` to match the configuration.
+## Key Improvements
+- **Performance:** Direct API call is significantly faster than spawning a shell process.
+- **Reliability:** Eliminates issues with shell environment variations (PATH, zsh vs bash) and TCC permission prompts.
+- **UX:** Zero configuration for the user. If they use the CLI, it just works.
+- **Security:** No longer executing arbitrary binaries. Only reads the standard credential file.
 
 ## Verification
-- **Unit Tests:** `GeminiUsageTests.swift` passes. It verifies that the service can execute a mock script and correctly parse the output table structure.
-- **Manual Testing:** Verified that `gemini stats session` output is correctly parsed into the UI models.
-
-## Next Steps / Recommendations
-- **Auto-Discovery:** Currently, the user must manually provide the path. Future work could attempt to auto-discover `gemini` in common locations (`/usr/local/bin`, `/opt/homebrew/bin`).
-- **Keychain Integration:** If the CLI ever requires an API key passed via stdin/env (currently relies on CLI's internal auth), move storage to Keychain.
-- **Sandbox:** The app currently runs unsandboxed. If sandboxing is enabled later, this CLI integration strategy (calling external subprocesses) will need a specific entitlement (`com.apple.security.app-sandbox.read-write` for the executable) or a helper tool.
+- **Unit Tests:** `GeminiUsageTests.swift` passes. It uses `MockURLProtocol` to verify that the service correctly reads credentials and decodes the API response.
+- **Manual Verification:** Verified against real API responses to ensure field mapping is correct.
 
 ## Technical Context for Handoff
 - **Project Structure:** Swift Package Manager setup in `BurnoutPackage`.
-- **Build System:** Xcode Workspace (`Burnout.xcworkspace`).
-- **Logging:** Uses `os.Logger` subsystem `com.ajaxjiang.Burnout`.
+- **Entitlements:** The app is configured with `com.apple.security.files.user-selected.read-only` and `com.apple.security.network.client`. Since the app is currently not sandboxed, it can read `~/.gemini` directly. If sandboxing is enabled, a specific temporary exception or user intent (Open Panel) would be needed for that path.

@@ -1,44 +1,102 @@
 import Testing
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 @testable import BurnoutFeature
 
+class MockURLProtocol: URLProtocol {
+    nonisolated(unsafe) static var requestHandler: ((URLRequest) throws -> (HTTPURLResponse, Data))?
+    
+    override class func canInit(with request: URLRequest) -> Bool {
+        return true
+    }
+    
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        return request
+    }
+    
+    override func startLoading() {
+        guard let handler = MockURLProtocol.requestHandler else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+            return
+        }
+        
+        do {
+            let (response, data) = try handler(request)
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: data)
+            client?.urlProtocolDidFinishLoading(self)
+        } catch {
+            client?.urlProtocol(self, didFailWithError: error)
+        }
+    }
+    
+    override func stopLoading() {}
+}
+
 struct GeminiUsageTests {
-    @Test func testGeminiCommandExecution() async throws {
-        // Since we are now using zsh -l -c to run the command, we can't easily mock the command by just pointing to a script 
-        // because zsh will try to source profiles which might not exist or be weird in test env.
-        // However, we can create a mock executable and pass it to the service.
-        // But the service executes `zsh -l -c "PATH stats session"`.
-        // So we need to ensure "PATH" is executable by zsh.
+    @Test func testGeminiAPIFetch() async throws {
+        // 1. Setup Mock URLSession
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let session = URLSession(configuration: config)
         
+        // 2. Setup Mock Credentials
         let tempDir = FileManager.default.temporaryDirectory
-        let mockGemini = tempDir.appendingPathComponent("gemini-mock.sh")
+        let mockCredsURL = tempDir.appendingPathComponent("mock_creds.json")
+        let credsJSON = """
+        {
+          "access_token": "mock_token_123",
+          "expiry_date": 1234567890
+        }
+        """
+        try credsJSON.write(to: mockCredsURL, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: mockCredsURL) }
         
-        // Ensure the mock is a valid shell script
-        let scriptContent = """
-        #!/bin/bash
-        # Simply print the expected output regardless of arguments for this test
-        echo "│  Model Usage                 Reqs                  Usage left"
-        echo "│  ────────────────────────────────────────────────────────────"
-        echo "│  gemini-2.5-flash-lite          4   97.7% (Resets in 22h 52m)"
-        echo "│  gemini-3-pro-preview           3   78.0% (Resets in 22h 53m)"
-        echo "│  gemini-no-requests             -   100.0% (Resets in 23h 00m)"
+        // 3. Setup Mock API Response
+        let responseJSON = """
+        {
+          "buckets": [
+            {
+              "remainingAmount": "45",
+              "remainingFraction": 0.45,
+              "resetTime": "2025-10-30T10:00:00Z",
+              "tokenType": "requests_per_minute",
+              "modelId": "gemini-1.5-pro"
+            },
+            {
+              "remainingAmount": "100",
+              "remainingFraction": 1.0,
+              "resetTime": "2025-10-30T10:00:00Z",
+              "tokenType": "requests_per_minute",
+              "modelId": "gemini-1.5-flash"
+            }
+          ]
+        }
         """
         
-        try scriptContent.write(to: mockGemini, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: mockGemini.path)
+        MockURLProtocol.requestHandler = { request in
+            guard let url = request.url, url.absoluteString == "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota" else {
+                throw URLError(.badURL)
+            }
+            
+            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, responseJSON.data(using: .utf8)!)
+        }
         
-        defer { try? FileManager.default.removeItem(at: mockGemini) }
+        // 4. Test Service
+        let service = GeminiUsageService(urlSession: session, credentialsURL: mockCredsURL)
+        let usage = try await service.fetchUsage()
         
-        let service = GeminiUsageService()
-        let usage = try await service.fetchUsage(executablePath: mockGemini.path)
+        #expect(usage.buckets.count == 2)
         
-        #expect(usage.models.count == 3)
+        let proModel = usage.buckets.first(where: { $0.modelId == "gemini-1.5-pro" })!
+        #expect(proModel.remainingFraction == 0.45)
+        #expect(abs(proModel.usagePercentage - 55.0) < 0.0001) // (1.0 - 0.45) * 100
         
-        let model1 = usage.models.first(where: { $0.name == "gemini-2.5-flash-lite" })!
-        #expect(model1.requests == 4)
-        #expect(model1.usagePercentage == 97.7)
-        
-        let model3 = usage.models.first(where: { $0.name == "gemini-no-requests" })!
-        #expect(model3.requests == 0)
+        let flashModel = usage.buckets.first(where: { $0.modelId == "gemini-1.5-flash" })!
+        #expect(flashModel.remainingFraction == 1.0)
+        #expect(flashModel.usagePercentage == 0.0)
     }
 }
