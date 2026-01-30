@@ -74,7 +74,7 @@ public struct StatusView: View {
     @ViewBuilder
     private var claudeSection: some View {
         if let usage = viewModel.webUsage {
-            UsageSection(title: "Claude Code Quota", systemImage: "bolt.fill") {
+            UsageSection(title: "Claude Code Quota", systemImage: "asterisk") {
                 HStack(spacing: 24) {
                     UsageGauge(
                         title: "Session (5h)",
@@ -98,10 +98,10 @@ public struct StatusView: View {
 
     @ViewBuilder
     private var geminiSection: some View {
-        if let usage = viewModel.geminiUsage {
+        if let _ = viewModel.geminiUsage {
             UsageSection(title: "Gemini CLI Quota", systemImage: "sparkles") {
                 VStack(spacing: 12) {
-                    ForEach(usage.buckets) { bucket in
+                    ForEach(viewModel.simplifiedGeminiBuckets) { bucket in
                         GeminiUsageRow(bucket: bucket, viewModel: viewModel)
                     }
                 }
@@ -205,7 +205,7 @@ struct GeminiUsageRow: View {
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(bucket.modelId.replacingOccurrences(of: "gemini-", with: ""))
+                Text(bucket.modelId)
                     .font(.system(size: 12, weight: .semibold))
                 
                 HStack(spacing: 4) {

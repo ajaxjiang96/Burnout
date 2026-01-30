@@ -299,6 +299,55 @@ public class UsageViewModel: ObservableObject {
         return dates.min()
     }
 
+    public var simplifiedGeminiBuckets: [GeminiModelUsage] {
+        guard let usage = geminiUsage else { return [] }
+        
+        var groups: [String: [GeminiModelUsage]] = [:]
+        
+        for bucket in usage.buckets {
+            let id = bucket.modelId.lowercased()
+            let familyName: String
+            
+            if id.contains("flash-lite") {
+                familyName = "Gemini Flash-Lite"
+            } else if id.contains("flash") {
+                familyName = "Gemini Flash"
+            } else if id.contains("pro") {
+                familyName = "Gemini Pro"
+            } else {
+                familyName = bucket.modelId
+                    .replacingOccurrences(of: "gemini-", with: "")
+                    .capitalized
+            }
+            
+            groups[familyName, default: []].append(bucket)
+        }
+        
+        // For each group, pick the bucket with highest usage percentage
+        let aggregated = groups.compactMap { (familyName, buckets) -> GeminiModelUsage? in
+            guard let worstBucket = buckets.max(by: { $0.usagePercentage < $1.usagePercentage }) else { return nil }
+            
+            return GeminiModelUsage(
+                modelId: familyName,
+                tokenType: worstBucket.tokenType,
+                remainingAmount: worstBucket.remainingAmount,
+                remainingFraction: worstBucket.remainingFraction,
+                resetTime: worstBucket.resetTime
+            )
+        }
+        
+        // Sort by predefined order: Pro, Flash, Flash-Lite
+        let order = ["Gemini Pro": 0, "Gemini Flash": 1, "Gemini Flash-Lite": 2]
+        return aggregated.sorted { (a, b) in
+            let orderA = order[a.modelId] ?? 99
+            let orderB = order[b.modelId] ?? 99
+            if orderA != orderB {
+                return orderA < orderB
+            }
+            return a.modelId < b.modelId
+        }
+    }
+
     public func formatResetTime(_ date: Date) -> String {
         let diff = date.timeIntervalSince(Date())
         if diff <= 0 { return "Reset..." }
