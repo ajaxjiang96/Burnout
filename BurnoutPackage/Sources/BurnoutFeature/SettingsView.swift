@@ -10,6 +10,10 @@ public struct SettingsView: View {
 
     public var body: some View {
         Form {
+            Section("General") {
+                Toggle("Launch at login", isOn: $viewModel.launchAtLogin)
+            }
+            
             Section {
                 TextField(
                     "Organization ID", text: $viewModel.organizationId,

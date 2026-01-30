@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import os
+import ServiceManagement
 
 public enum MenuBarIcon: String, CaseIterable, Identifiable {
     case gauge = "Gauge"
@@ -77,6 +78,16 @@ public class UsageViewModel: ObservableObject {
     @Published public var menuBarIcon: MenuBarIcon = MenuBarIcon(rawValue: UserDefaults.standard.string(forKey: "burnout_menu_bar_icon") ?? "") ?? .gauge {
         didSet {
             UserDefaults.standard.set(menuBarIcon.rawValue, forKey: "burnout_menu_bar_icon")
+        }
+    }
+
+    @Published public var launchAtLogin: Bool = UserDefaults.standard.bool(forKey: "burnout_launch_at_login") {
+        didSet {
+            UserDefaults.standard.set(launchAtLogin, forKey: "burnout_launch_at_login")
+            #if os(macOS)
+            // Fallback to deprecated API as SMAppService.main is unavailable in this SDK version
+            SMLoginItemSetEnabled("com.ajaxjiang.Burnout" as CFString, launchAtLogin)
+            #endif
         }
     }
 
