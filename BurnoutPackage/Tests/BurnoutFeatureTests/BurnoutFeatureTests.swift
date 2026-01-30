@@ -63,7 +63,7 @@ struct UsageViewModelTests {
             sevenDay: UsageWindow(utilization: 10.0, resetsAt: nil)
         ))
         low.displayedUsage = .session
-        low.menuBarIcon = .flame
+        low.selectedIcon = .flame
         #expect(low.menuBarIconName == "flame")
 
         let mid = UsageViewModel(webUsage: ClaudeWebUsage(
@@ -71,7 +71,7 @@ struct UsageViewModelTests {
             sevenDay: UsageWindow(utilization: 10.0, resetsAt: nil)
         ))
         mid.displayedUsage = .session
-        mid.menuBarIcon = .flame
+        mid.selectedIcon = .flame
         #expect(mid.menuBarIconName == "flame.fill")
 
         let high = UsageViewModel(webUsage: ClaudeWebUsage(
@@ -79,7 +79,7 @@ struct UsageViewModelTests {
             sevenDay: UsageWindow(utilization: 10.0, resetsAt: nil)
         ))
         high.displayedUsage = .session
-        high.menuBarIcon = .flame
+        high.selectedIcon = .flame
         #expect(high.menuBarIconName == "exclamationmark.triangle.fill")
     }
 }

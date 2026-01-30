@@ -95,12 +95,29 @@ public class UsageViewModel: ObservableObject {
         }
     }
 
-    @Published public var launchAtLogin: Bool = UserDefaults.standard.bool(forKey: "burnout_launch_at_login") {
+    @Published public var launchAtLogin: Bool = {
+        #if os(macOS)
+        return SMAppService.mainApp.status == .enabled
+        #else
+        return false
+        #endif
+    }() {
         didSet {
-            UserDefaults.standard.set(launchAtLogin, forKey: "burnout_launch_at_login")
             #if os(macOS)
-            // Fallback to deprecated API as SMAppService.main is unavailable in this SDK version
-            SMLoginItemSetEnabled("com.ajaxjiang.Burnout" as CFString, launchAtLogin)
+            guard oldValue != launchAtLogin else { return }
+            do {
+                if launchAtLogin {
+                    if SMAppService.mainApp.status != .enabled {
+                        try SMAppService.mainApp.register()
+                    }
+                } else {
+                    if SMAppService.mainApp.status == .enabled {
+                        try SMAppService.mainApp.unregister()
+                    }
+                }
+            } catch {
+                Self.logger.error("Failed to toggle launch at login: \(error)")
+            }
             #endif
         }
     }
