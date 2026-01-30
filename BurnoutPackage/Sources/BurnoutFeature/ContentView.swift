@@ -1,6 +1,7 @@
 import SwiftUI
 
 public struct StatusView: View {
+    @Environment(\.openSettings) private var openSettings
     @ObservedObject var viewModel: UsageViewModel
 
     public init(viewModel: UsageViewModel) {
@@ -157,21 +158,30 @@ public struct StatusView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "key.fill")
-                .font(.largeTitle)
-                .foregroundColor(.secondary)
-            Text("Open Settings to configure credentials.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
+        Button {
+            NSApplication.shared.activate(ignoringOtherApps: true)
+            openSettings()
+        } label: {
+            VStack(spacing: 8) {
+                Image(systemName: "key.fill")
+                    .font(.largeTitle)
+                    .foregroundColor(.secondary)
+                Text("Open Settings to configure credentials.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
         }
+        .buttonStyle(.plain)
         .padding()
     }
 
     private var footerButtons: some View {
         HStack {
-            SettingsLink {
+            Button {
+                NSApplication.shared.activate(ignoringOtherApps: true)
+                openSettings()
+            } label: {
                 Label("Settings", systemImage: "gear")
             }
             .buttonStyle(.glass)
