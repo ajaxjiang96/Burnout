@@ -1,8 +1,10 @@
 import SwiftUI
 
+import SwiftUI
+import AppKit
+
 public struct SettingsView: View {
     @ObservedObject var viewModel: UsageViewModel
-    @State private var showingHelp = false
 
     public init(viewModel: UsageViewModel) {
         self.viewModel = viewModel
@@ -10,175 +12,223 @@ public struct SettingsView: View {
 
     public var body: some View {
         Form {
-            Section("General") {
-                Toggle("Launch at login", isOn: $viewModel.launchAtLogin)
-            }
-            
-            Section("Appearance") {
-                Picker("Menu Bar Icon", selection: $viewModel.selectedIcon) {
-                    ForEach(MenuBarIcon.allCases) { style in
-                        Text(style.rawValue).tag(style)
-                    }
-                }
-            }
-            
-            Section("AI Services") {
-                // MARK: Claude.ai
-                Toggle("Claude.ai", isOn: $viewModel.isClaudeEnabled)
-                
-                if viewModel.isClaudeEnabled {
-                    Group {
-                        TextField(
-                            "Organization ID", text: $viewModel.organizationId,
-                            prompt: Text("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
-                        )
-                        .font(.system(.body, design: .monospaced))
-
-                        SecureField("Session Key", text: $viewModel.sessionKey, prompt: Text("sk-ant-..."))
-                            .font(.system(.body, design: .monospaced))
-                        
-                        HStack {
-                            if viewModel.hasClaudeCredentials {
-                                Label("Connected", systemImage: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
-                            } else {
-                                Label("Setup required", systemImage: "exclamationmark.triangle.fill")
-                                    .foregroundStyle(.orange)
-                            }
-                            Spacer()
-                            Button("Get Help") { showingHelp.toggle() }
-                                .buttonStyle(.link)
-                        }
-                        .font(.caption)
-                    }
-                    .padding(.leading)
-                }
-                
-                // MARK: Gemini
-                Toggle("Gemini CLI", isOn: $viewModel.isGeminiEnabled)
-                
-                if viewModel.isGeminiEnabled {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            if viewModel.hasGeminiCredentials {
-                                Label("Connected", systemImage: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
-                            } else {
-                                Label("Not authenticated", systemImage: "xmark.circle.fill")
-                                    .foregroundStyle(.red)
-                            }
-                            Spacer()
-                            Button("Setup Info") { showingHelp.toggle() }
-                                .buttonStyle(.link)
-                        }
-                        
-                        if !viewModel.hasGeminiCredentials {
-                            Text("Run 'gemini auth login' in your terminal")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .font(.caption)
-                    .padding(.leading)
-                }
-            }
-            
-            Section("About") {
-                LabeledContent("Version") {
-                    Text(Self.appVersion)
-                }
-                LabeledContent("Copyright") {
-                    Text("© 2026 Jiacheng Jiang")
-                }
-                LabeledContent("License") {
-                    Text("GPL-3.0")
-                }
-                LabeledContent("GitHub") {
-                    Link("ajaxjiang96/Burnout", destination: URL(string: "https://github.com/ajaxjiang96/Burnout")!)
-                }
-                HStack {
-                    Spacer()
-                    Link(destination: URL(string: "https://buymeacoffee.com/ajaxjiang")!) {
-                        Image("bmc-button")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(height: 40)
-                    }
-                }
-            }
+            GeneralSettingsView(viewModel: viewModel)
+            AppearanceSettingsView(viewModel: viewModel)
+            AIServicesSettingsView(viewModel: viewModel)
+            AboutSettingsView()
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 420)
-    }
-
-    private static var appVersion: String {
-        let version =
-            Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "–"
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "–"
-        return "\(version) (\(build))"
-    }
-
-    private var helpView: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Claude.ai Credentials")
-                .font(.headline)
-
-            VStack(alignment: .leading, spacing: 8) {
-                HelpStep(number: 1, text: "Go to claude.ai/settings/usage in your browser")
-                HelpStep(number: 2, text: "Open Developer Tools (Cmd+Option+I)")
-                HelpStep(number: 3, text: "Go to Network tab and refresh the page")
-                HelpStep(
-                    number: 4, text: "Find the 'usage' request, copy the UUID from the URL path")
-                HelpStep(number: 5, text: "Go to Application > Cookies > claude.ai")
-                HelpStep(number: 6, text: "Copy the 'sessionKey' value")
-            }
-            
-            Divider()
-            
-            Text("Gemini CLI Setup")
-                .font(.headline)
-            
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Authenticate with Gemini CLI:")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                Text("gemini auth login")
-                    .font(.system(.caption, design: .monospaced))
-                    .padding(8)
-                    .background(Color.black.opacity(0.1))
-                    .cornerRadius(4)
-                    .textSelection(.enabled)
-                
-                Text("This creates the necessary credentials file.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            Text("Note: Session keys expire periodically and will need to be updated.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-        .padding()
-        .frame(width: 320)
+        .frame(width: 480, height: 500)
     }
 }
 
-// MARK: - Components
+// MARK: - Subviews
 
-private struct HelpStep: View {
-    let number: Int
-    let text: String
-
+private struct GeneralSettingsView: View {
+    @ObservedObject var viewModel: UsageViewModel
+    
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Text("\(number).")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .frame(width: 16, alignment: .trailing)
-            Text(text)
-                .font(.caption)
+        Section("General") {
+            Toggle("Launch at login", isOn: $viewModel.launchAtLogin)
         }
+    }
+}
+
+private struct AppearanceSettingsView: View {
+    @ObservedObject var viewModel: UsageViewModel
+    
+    var body: some View {
+        Section("Appearance") {
+            Picker("Menu Bar Icon", selection: $viewModel.selectedIcon) {
+                ForEach(MenuBarIcon.allCases) { style in
+                    Text(style.rawValue).tag(style)
+                }
+            }
+        }
+    }
+}
+
+private struct AIServicesSettingsView: View {
+    @ObservedObject var viewModel: UsageViewModel
+    @State private var showClaudeHelp = false
+    @State private var showGeminiHelp = false
+    
+    var body: some View {
+        Section("AI Services") {
+            // MARK: Claude.ai
+            Toggle("Claude.ai", isOn: $viewModel.isClaudeEnabled)
+            
+            if viewModel.isClaudeEnabled {
+                Group {
+                    TextField(
+                        "Organization ID", text: $viewModel.organizationId,
+                        prompt: Text("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
+                    )
+                    .font(.system(.body, design: .monospaced))
+
+                    SecureField("Session Key", text: $viewModel.sessionKey, prompt: Text("sk-ant-..."))
+                        .font(.system(.body, design: .monospaced))
+                    
+                    HStack {
+                        if viewModel.hasClaudeCredentials {
+                            Label("Connected", systemImage: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                        } else {
+                            Label("Setup required", systemImage: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                        }
+                        Spacer()
+                        Button {
+                            withAnimation { showClaudeHelp.toggle() }
+                        } label: {
+                            Image(systemName: "info.circle")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Show setup instructions")
+                    }
+                    .font(.caption)
+                    
+                    if showClaudeHelp {
+                        ClaudeHelpInstructions()
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+                }
+                .padding(.leading)
+            }
+            
+            // MARK: Gemini
+            Toggle("Gemini CLI", isOn: $viewModel.isGeminiEnabled)
+            
+            if viewModel.isGeminiEnabled {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        if viewModel.hasGeminiCredentials {
+                            Label("Connected", systemImage: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                        } else {
+                            Label("Not authenticated", systemImage: "xmark.circle.fill")
+                                .foregroundStyle(.red)
+                        }
+                        Spacer()
+                        Button {
+                            withAnimation { showGeminiHelp.toggle() }
+                        } label: {
+                            Image(systemName: "info.circle")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Show setup instructions")
+                    }
+                    .font(.caption)
+                    
+                    if !viewModel.hasGeminiCredentials && !showGeminiHelp {
+                        Text("Run 'gemini auth login' in your terminal")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    if showGeminiHelp {
+                        GeminiHelpInstructions()
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+                }
+                .padding(.leading)
+            }
+        }
+    }
+}
+
+private struct ClaudeHelpInstructions: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("How to find your credentials:")
+                .font(.caption)
+                .bold()
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("1. Go to claude.ai/settings/usage")
+                Text("2. Open Developer Tools (Cmd+Option+I)")
+                Text("3. Check Network tab > 'usage' request")
+                Text("4. UUID from URL path = Organization ID")
+                Text("5. Application > Cookies > 'sessionKey'")
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.secondary.opacity(0.1))
+        .cornerRadius(6)
+    }
+}
+
+private struct GeminiHelpInstructions: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Authenticate with Gemini CLI:")
+                .font(.caption)
+                .bold()
+            
+            HStack {
+                Text("gemini auth login")
+                    .font(.system(.caption, design: .monospaced))
+                
+                Spacer()
+                
+                Button {
+                    let pasteboard = NSPasteboard.general
+                    pasteboard.clearContents()
+                    pasteboard.setString("gemini auth login", forType: .string)
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                        .font(.system(size: 12))
+                }
+                .buttonStyle(.plain)
+                .help("Copy command")
+            }
+            .padding(8)
+            .background(Color.black.opacity(0.1))
+            .cornerRadius(4)
+            
+            Text("This creates the necessary credentials file.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.secondary.opacity(0.1))
+        .cornerRadius(6)
+    }
+}
+
+private struct AboutSettingsView: View {
+    var body: some View {
+        Section("About") {
+            LabeledContent("Version", value: SettingsView.appVersion)
+            LabeledContent("Copyright", value: "© 2026 Jiacheng Jiang")
+            LabeledContent("License", value: "GPL-3.0")
+            LabeledContent("GitHub") {
+                Link("ajaxjiang96/Burnout", destination: URL(string: "https://github.com/ajaxjiang96/Burnout")!)
+            }
+            HStack {
+                Spacer()
+                Link(destination: URL(string: "https://buymeacoffee.com/ajaxjiang")!) {
+                    Image("bmc-button")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(height: 40)
+                }
+            }
+        }
+    }
+}
+
+extension SettingsView {
+    static var appVersion: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "–"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "–"
+        return "\(version) (\(build))"
     }
 }
 
