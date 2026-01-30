@@ -15,6 +15,7 @@ public struct SettingsView: View {
             GeneralSettingsView(viewModel: viewModel)
             AIServicesSettingsView(viewModel: viewModel)
             AboutSettingsView(viewModel: viewModel)
+            DisclaimerSettingsView()
         }
         .formStyle(.grouped)
         .frame(width: 480, height: 500)
@@ -22,6 +23,28 @@ public struct SettingsView: View {
 }
 
 // MARK: - Subviews
+
+private struct DisclaimerSettingsView: View {
+    var body: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Disclaimer", systemImage: "exclamationmark.triangle.fill")
+                    .font(.headline)
+                    .foregroundStyle(.orange)
+                
+                Text("Burnout is an unofficial project and is not affiliated with Anthropic or Google.")
+                    .font(.caption)
+                    .fixedSize(horizontal: false, vertical: true)
+                
+                Text("This app uses internal APIs which may violate Terms of Service. Use at your own risk. The developer is not responsible for any account actions.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.vertical, 4)
+        }
+    }
+}
 
 private struct GeneralSettingsView: View {
     @ObservedObject var viewModel: UsageViewModel

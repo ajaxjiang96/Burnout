@@ -65,6 +65,14 @@ Data flows from the Claude.ai usage API through `ClaudeUsageService` into `Usage
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding conventions, and how to submit changes.
 
+## Disclaimer
+
+**Burnout** is an unofficial, open-source project and is **not** affiliated with, endorsed by, or sponsored by Anthropic (Claude.ai) or Google (Gemini).
+
+This app uses internal APIs and session keys to retrieve usage data. This method may violate the Terms of Service of these platforms. **Use this application at your own risk.**
+
+The developer is not responsible for any account suspensions, bans, or data loss resulting from the use of this software. Your credentials are stored locally on your device and are never transmitted to any third-party server.
+
 ## License
 
 Burnout is licensed under the [GNU General Public License v3.0](LICENSE).
