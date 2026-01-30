@@ -3,44 +3,6 @@ import Combine
 import os
 import ServiceManagement
 
-public enum MenuBarIcon: String, CaseIterable, Identifiable {
-    case gauge = "Gauge"
-    case flame = "Flame"
-
-    public var id: String { rawValue }
-
-    public func iconName(for percentage: Double) -> String {
-        switch self {
-        case .gauge:
-            switch percentage {
-            case ..<0.5:
-                return "gauge.with.dots.needle.bottom.0percent"
-            case 0.5..<0.9:
-                return "gauge.with.dots.needle.bottom.50percent"
-            default:
-                return "gauge.with.dots.needle.bottom.100percent"
-            }
-        case .flame:
-            switch percentage {
-            case ..<0.5:
-                return "flame"
-            case 0.5..<0.9:
-                return "flame.fill"
-            default:
-                return "exclamationmark.triangle.fill"
-            }
-        }
-    }
-}
-
-public enum DisplayedUsage: String, CaseIterable, Identifiable {
-    case highest = "Highest"
-    case session = "Session (5h)"
-    case weekly = "Weekly (7d)"
-
-    public var id: String { rawValue }
-}
-
 @MainActor
 public class UsageViewModel: ObservableObject {
     private nonisolated static let logger = Logger(subsystem: "com.ajaxjiang.Burnout", category: "UsageViewModel")
@@ -69,12 +31,6 @@ public class UsageViewModel: ObservableObject {
         }
     }
 
-    @Published public var displayedUsage: DisplayedUsage = DisplayedUsage(rawValue: UserDefaults.standard.string(forKey: "burnout_displayed_usage") ?? "") ?? .session {
-        didSet {
-            UserDefaults.standard.set(displayedUsage.rawValue, forKey: "burnout_displayed_usage")
-        }
-    }
-
     @Published public var isClaudeEnabled: Bool = UserDefaults.standard.object(forKey: "burnout_claude_enabled") as? Bool ?? true {
         didSet {
             UserDefaults.standard.set(isClaudeEnabled, forKey: "burnout_claude_enabled")
@@ -86,12 +42,6 @@ public class UsageViewModel: ObservableObject {
         didSet {
             UserDefaults.standard.set(isGeminiEnabled, forKey: "burnout_gemini_enabled")
             if isGeminiEnabled { refresh() } else { geminiUsage = nil }
-        }
-    }
-
-    @Published public var selectedIcon: MenuBarIcon = MenuBarIcon(rawValue: UserDefaults.standard.string(forKey: "burnout_selected_icon") ?? "") ?? .gauge {
-        didSet {
-            UserDefaults.standard.set(selectedIcon.rawValue, forKey: "burnout_selected_icon")
         }
     }
 
@@ -125,6 +75,15 @@ public class UsageViewModel: ObservableObject {
     @Published public var webUsage: ClaudeWebUsage? = nil
     @Published public var geminiUsage: GeminiUsage? = nil
 
+    private var lastChangedClaude: Date = .distantPast
+    private var lastChangedGemini: Date = .distantPast
+
+    public struct MenuBarDisplayItem {
+        public let icon: String
+        public let text: String
+        public let color: Color
+    }
+
     private let service: UsageServiceProtocol
     private let geminiService: GeminiUsageServiceProtocol
 
@@ -151,6 +110,10 @@ public class UsageViewModel: ObservableObject {
         self.isClaudeEnabled = isClaudeEnabled
         self.isGeminiEnabled = isGeminiEnabled
         self.error = error
+        
+        // Initialize timestamps for preview
+        if webUsage != nil { lastChangedClaude = Date() }
+        if geminiUsage != nil { lastChangedGemini = Date() }
     }
 
     public func refresh() {
@@ -161,8 +124,13 @@ public class UsageViewModel: ObservableObject {
                 if isClaudeEnabled && hasClaudeCredentials {
                     group.addTask {
                         do {
-                            let usage = try await self.service.fetchWebUsage(sessionKey: self.sessionKey, organizationId: self.organizationId)
-                            await MainActor.run { self.webUsage = usage }
+                            let newUsage = try await self.service.fetchWebUsage(sessionKey: self.sessionKey, organizationId: self.organizationId)
+                            await MainActor.run {
+                                if self.webUsage != newUsage {
+                                    self.webUsage = newUsage
+                                    self.lastChangedClaude = Date()
+                                }
+                            }
                         } catch {
                             Self.logger.error("Claude usage refresh failed: \(error)")
                             await MainActor.run { self.error = (self.error ?? "") + "Claude: " + error.localizedDescription + "\n" }
@@ -173,8 +141,13 @@ public class UsageViewModel: ObservableObject {
                 if isGeminiEnabled && hasGeminiCredentials {
                     group.addTask {
                         do {
-                            let gUsage = try await self.geminiService.fetchUsage()
-                            await MainActor.run { self.geminiUsage = gUsage }
+                            let newUsage = try await self.geminiService.fetchUsage()
+                            await MainActor.run {
+                                if self.geminiUsage != newUsage {
+                                    self.geminiUsage = newUsage
+                                    self.lastChangedGemini = Date()
+                                }
+                            }
                         } catch {
                             Self.logger.error("Gemini usage refresh failed: \(error)")
                             await MainActor.run { self.error = (self.error ?? "") + "Gemini: " + error.localizedDescription + "\n" }
@@ -185,6 +158,95 @@ public class UsageViewModel: ObservableObject {
             
             self.lastUpdated = Date()
         }
+    }
+
+    public var activeDisplayItem: MenuBarDisplayItem? {
+        // Determine which service to show based on last update
+        // If one is disabled/missing, prefer the other.
+        // If both present, use timestamp.
+        
+        let showClaude = isClaudeEnabled && hasClaudeCredentials && webUsage != nil
+        let showGemini = isGeminiEnabled && hasGeminiCredentials && geminiUsage != nil
+        
+        if showClaude && showGemini {
+            if lastChangedClaude >= lastChangedGemini {
+                return claudeDisplayItem
+            } else {
+                return geminiDisplayItem
+            }
+        } else if showClaude {
+            return claudeDisplayItem
+        } else if showGemini {
+            return geminiDisplayItem
+        }
+        
+        return nil
+    }
+    
+    private var claudeDisplayItem: MenuBarDisplayItem? {
+        guard let usage = webUsage else { return nil }
+        
+        // Logic: Session usage unless Weekly > 95%
+        let sessionUtil = usage.fiveHour.utilization
+        let weeklyUtil = usage.sevenDay.utilization
+        
+        let targetWindow: UsageWindow
+        if weeklyUtil > 95.0 {
+            targetWindow = usage.sevenDay
+        } else {
+            targetWindow = usage.fiveHour
+        }
+        
+        let utilization = targetWindow.utilization
+        let percentage = utilization / 100.0
+        
+        let text: String
+        let color: Color
+        
+        if utilization >= 100.0, let reset = targetWindow.resetsAt {
+            text = formatResetTime(reset)
+            color = .red
+        } else {
+            text = "\(Int(utilization))%"
+            color = self.color(for: percentage)
+        }
+        
+        return MenuBarDisplayItem(icon: "asterisk", text: text, color: color)
+    }
+    
+    private var geminiDisplayItem: MenuBarDisplayItem? {
+        guard let usage = geminiUsage else { return nil }
+        
+        // Logic: Always display Pro model
+        // Look for "pro" in modelId (e.g. "gemini-1.5-pro")
+        let proBucket = usage.buckets.first { $0.modelId.lowercased().contains("pro") }
+        
+        guard let bucket = proBucket else {
+            // Fallback if no Pro model found? Use max?
+            // For now, let's fallback to max usage if pro isn't found, or just show 0%
+            return MenuBarDisplayItem(icon: "sparkles", text: "N/A", color: .secondary)
+        }
+        
+        let percentage = bucket.usagePercentage
+        let text: String
+        let color: Color
+        
+        if percentage >= 100.0 {
+            // Parse reset time
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = formatter.date(from: bucket.resetTime) ?? ISO8601DateFormatter().date(from: bucket.resetTime) {
+                text = formatResetTime(date)
+            } else {
+                text = "Wait..."
+            }
+            color = .red
+        } else {
+            text = "\(Int(percentage))%"
+            color = self.color(for: percentage / 100.0)
+        }
+        
+        return MenuBarDisplayItem(icon: "sparkles", text: text, color: color)
     }
 
     private func startPolling() {
@@ -214,20 +276,9 @@ public class UsageViewModel: ObservableObject {
         max(claudePercentage, geminiPercentage)
     }
 
-    public var menuBarIconName: String {
-        selectedIcon.iconName(for: usagePercentage)
-    }
-
     public var claudePercentage: Double {
         guard let usage = webUsage else { return 0.0 }
-        switch displayedUsage {
-        case .highest:
-            return usage.maxUtilization
-        case .session:
-            return usage.fiveHour.utilization / 100.0
-        case .weekly:
-            return usage.sevenDay.utilization / 100.0
-        }
+        return usage.maxUtilization
     }
 
     public var claudePercentageText: String {

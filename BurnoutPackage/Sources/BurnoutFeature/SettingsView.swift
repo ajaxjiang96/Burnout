@@ -13,7 +13,6 @@ public struct SettingsView: View {
     public var body: some View {
         Form {
             GeneralSettingsView(viewModel: viewModel)
-            AppearanceSettingsView(viewModel: viewModel)
             AIServicesSettingsView(viewModel: viewModel)
             AboutSettingsView()
         }
@@ -30,20 +29,23 @@ private struct GeneralSettingsView: View {
     var body: some View {
         Section("General") {
             Toggle("Launch at login", isOn: $viewModel.launchAtLogin)
-        }
-    }
-}
-
-private struct AppearanceSettingsView: View {
-    @ObservedObject var viewModel: UsageViewModel
-    
-    var body: some View {
-        Section("Appearance") {
-            Picker("Menu Bar Icon", selection: $viewModel.selectedIcon) {
-                ForEach(MenuBarIcon.allCases) { style in
-                    Text(style.rawValue).tag(style)
-                }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Menu Bar Display Logic")
+                    .font(.caption)
+                    .bold()
+                    .foregroundStyle(.secondary)
+                Text("• Displays the most recently updated service.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text("• Claude: Session usage (Weekly if > 95%).")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text("• Gemini: Pro model usage.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
+            .padding(.top, 4)
         }
     }
 }

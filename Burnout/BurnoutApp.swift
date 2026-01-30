@@ -15,16 +15,17 @@ struct BurnoutApp: App {
         MenuBarExtra {
             StatusView(viewModel: viewModel)
         } label: {
-            HStack {
-                Image(systemName: viewModel.menuBarIconName)
-                if viewModel.usagePercentage > 0.9, let usage = viewModel.webUsage, usage.soonestReset != nil {
-                    Text(viewModel.soonestResetText)
-                        .foregroundStyle(.red)
-                } else {
-                    Text("\(Int(viewModel.usagePercentage * 100))%")
+            if let item = viewModel.activeDisplayItem {
+                HStack(spacing: 2) {
+                    Image(systemName: item.icon)
+                        .imageScale(.small)
+                    Text(item.text)
                         .font(.system(.body, design: .monospaced))
+                        .foregroundStyle(item.color)
                 }
-            }.frame(alignment: .center)
+            } else {
+                Image(systemName: "flame")
+            }
         }
         .menuBarExtraStyle(.window)
 
