@@ -151,7 +151,7 @@ public class UsageViewModel: ObservableObject {
                         do {
                             let newUsage = try await self.geminiService.fetchUsage()
                             await MainActor.run {
-                                if self.geminiUsage != newUsage {
+                                if self.geminiUsage?.buckets != newUsage.buckets {
                                     self.geminiUsage = newUsage
                                     self.lastChangedGemini = Date()
                                 }
@@ -183,14 +183,27 @@ public class UsageViewModel: ObservableObject {
     }
 
     public var activeDisplayItem: MenuBarDisplayItem? {
-        // Determine which service to show based on last update
+        // Determine which service to show based on last update and activity
         // If one is disabled/missing, prefer the other.
-        // If both present, use timestamp.
         
         let showClaude = isClaudeEnabled && hasClaudeCredentials && webUsage != nil
         let showGemini = isGeminiEnabled && hasGeminiCredentials && geminiUsage != nil
         
         if showClaude && showGemini {
+            // Prioritize active usage
+            // Claude is active if session usage > 0
+            // Gemini is active if usage > 0
+            let claudeActive = (webUsage?.fiveHour.utilization ?? 0) > 0
+            let geminiActive = (geminiUsage?.maxUsagePercentage ?? 0) > 0
+            
+            if geminiActive && !claudeActive {
+                return geminiDisplayItem
+            }
+            if claudeActive && !geminiActive {
+                return claudeDisplayItem
+            }
+            
+            // Fallback to timestamp if both active or both inactive
             if lastChangedClaude >= lastChangedGemini {
                 return claudeDisplayItem
             } else {
