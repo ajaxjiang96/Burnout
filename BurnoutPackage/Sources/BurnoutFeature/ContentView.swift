@@ -31,18 +31,22 @@ public struct StatusView: View {
                     .padding(.horizontal)
             }
 
-            if let usage = viewModel.webUsage {
-                usageContent(usage)
-            } else if viewModel.hasClaudeCredentials {
-                ProgressView()
-                    .padding()
+            if viewModel.isClaudeEnabled {
+                if let usage = viewModel.webUsage {
+                    usageContent(usage)
+                } else if viewModel.hasClaudeCredentials {
+                    ProgressView()
+                        .padding()
+                }
             }
             
-            if let gemini = viewModel.geminiUsage {
-                geminiContent(gemini)
-            } else if viewModel.hasGeminiCredentials {
-                 // Show loader if Gemini is configured and we are waiting
-                 ProgressView().padding()
+            if viewModel.isGeminiEnabled {
+                if let gemini = viewModel.geminiUsage {
+                    geminiContent(gemini)
+                } else if viewModel.hasGeminiCredentials {
+                     // Show loader if Gemini is configured and we are waiting
+                     ProgressView().padding()
+                }
             }
 
             if !viewModel.hasCredentials {

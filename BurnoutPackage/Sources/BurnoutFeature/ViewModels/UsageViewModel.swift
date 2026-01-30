@@ -75,9 +75,17 @@ public class UsageViewModel: ObservableObject {
         }
     }
 
-    @Published public var menuBarIcon: MenuBarIcon = MenuBarIcon(rawValue: UserDefaults.standard.string(forKey: "burnout_menu_bar_icon") ?? "") ?? .gauge {
+    @Published public var isClaudeEnabled: Bool = UserDefaults.standard.object(forKey: "burnout_claude_enabled") as? Bool ?? true {
         didSet {
-            UserDefaults.standard.set(menuBarIcon.rawValue, forKey: "burnout_menu_bar_icon")
+            UserDefaults.standard.set(isClaudeEnabled, forKey: "burnout_claude_enabled")
+            if isClaudeEnabled { refresh() } else { webUsage = nil }
+        }
+    }
+
+    @Published public var isGeminiEnabled: Bool = UserDefaults.standard.object(forKey: "burnout_gemini_enabled") as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(isGeminiEnabled, forKey: "burnout_gemini_enabled")
+            if isGeminiEnabled { refresh() } else { geminiUsage = nil }
         }
     }
 
@@ -106,15 +114,19 @@ public class UsageViewModel: ObservableObject {
     }
 
     /// Preview-only initializer that sets mock state without triggering network or polling.
-    init(
+    public init(
         webUsage: ClaudeWebUsage?,
         geminiUsage: GeminiUsage? = nil,
+        isClaudeEnabled: Bool = true,
+        isGeminiEnabled: Bool = true,
         error: String? = nil
     ) {
         self.service = ClaudeUsageService()
         self.geminiService = GeminiUsageService()
         self.webUsage = webUsage
         self.geminiUsage = geminiUsage
+        self.isClaudeEnabled = isClaudeEnabled
+        self.isGeminiEnabled = isGeminiEnabled
         self.error = error
     }
 
@@ -123,7 +135,7 @@ public class UsageViewModel: ObservableObject {
             self.error = nil
             
             await withTaskGroup(of: Void.self) { group in
-                if hasClaudeCredentials {
+                if isClaudeEnabled && hasClaudeCredentials {
                     group.addTask {
                         do {
                             let usage = try await self.service.fetchWebUsage(sessionKey: self.sessionKey, organizationId: self.organizationId)
@@ -135,7 +147,7 @@ public class UsageViewModel: ObservableObject {
                     }
                 }
                 
-                if hasGeminiCredentials {
+                if isGeminiEnabled && hasGeminiCredentials {
                     group.addTask {
                         do {
                             let gUsage = try await self.geminiService.fetchUsage()
@@ -162,7 +174,7 @@ public class UsageViewModel: ObservableObject {
     }
     
     public var hasCredentials: Bool {
-        hasClaudeCredentials || hasGeminiCredentials
+        (isClaudeEnabled && hasClaudeCredentials) || (isGeminiEnabled && hasGeminiCredentials)
     }
 
     public var hasClaudeCredentials: Bool {
@@ -176,33 +188,48 @@ public class UsageViewModel: ObservableObject {
     }
 
     public var usagePercentage: Double {
-        var percentage = 0.0
-        
-        if let usage = webUsage {
-            switch displayedUsage {
-            case .highest:
-                percentage = usage.maxUtilization
-            case .session:
-                percentage = usage.fiveHour.utilization / 100.0
-            case .weekly:
-                percentage = usage.sevenDay.utilization / 100.0
-            }
-        }
-        
-        if let gemini = geminiUsage {
-            let geminiMax = gemini.maxUsagePercentage / 100.0
-            percentage = max(percentage, geminiMax)
-        }
-        
-        return percentage
+        max(claudePercentage, geminiPercentage)
     }
 
-    public var menuBarIconName: String {
-        menuBarIcon.iconName(for: usagePercentage)
+    public var claudePercentage: Double {
+        guard let usage = webUsage else { return 0.0 }
+        switch displayedUsage {
+        case .highest:
+            return usage.maxUtilization
+        case .session:
+            return usage.fiveHour.utilization / 100.0
+        case .weekly:
+            return usage.sevenDay.utilization / 100.0
+        }
+    }
+
+    public var claudePercentageText: String {
+        if claudePercentage >= 0.9, !claudeResetText.isEmpty {
+            return claudeResetText
+        } else {
+            return "\(Int(claudePercentage * 100))%"
+        }
+    }
+
+    public var geminiPercentage: Double {
+        guard let gemini = geminiUsage else { return 0.0 }
+        return gemini.maxUsagePercentage / 100.0
+    }
+
+    public var geminiPercentageText: String {
+        if geminiPercentage >= 0.9, !geminiResetText.isEmpty {
+            return geminiResetText
+        } else {
+            return "\(Int(geminiPercentage * 100))%"
+        }
     }
 
     public var usageColor: Color {
-        switch usagePercentage {
+        color(for: usagePercentage)
+    }
+
+    public func color(for percentage: Double) -> Color {
+        switch percentage {
         case 0..<0.5: return .green
         case 0.5..<0.8: return .yellow
         case 0.8..<1.0: return .orange
@@ -221,18 +248,55 @@ public class UsageViewModel: ObservableObject {
     }
 
     public var soonestResetText: String {
-        guard let usage = webUsage, let resetDate = usage.soonestReset else { return "" }
-        return formatResetTime(resetDate)
+        guard let date = soonestResetDate else { return "" }
+        return formatResetTime(date)
     }
 
-    private func formatResetTime(_ date: Date) -> String {
+    public var claudeResetText: String {
+        guard let date = webUsage?.soonestReset else { return "" }
+        return formatResetTime(date)
+    }
+
+    public var geminiResetText: String {
+        guard let date = geminiSoonestResetDate else { return "" }
+        return formatResetTime(date)
+    }
+
+    public var soonestResetDate: Date? {
+        let claudeReset = webUsage?.soonestReset
+        let geminiReset = geminiSoonestResetDate
+        
+        switch (claudeReset, geminiReset) {
+        case (.some(let c), .some(let g)):
+            return min(c, g)
+        case (.some(let c), .none):
+            return c
+        case (.none, .some(let g)):
+            return g
+        case (.none, .none):
+            return nil
+        }
+    }
+
+    public var geminiSoonestResetDate: Date? {
+        guard let gemini = geminiUsage else { return nil }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        
+        let dates = gemini.buckets.compactMap { bucket -> Date? in
+            formatter.date(from: bucket.resetTime) ?? ISO8601DateFormatter().date(from: bucket.resetTime)
+        }
+        return dates.min()
+    }
+
+    public func formatResetTime(_ date: Date) -> String {
         let diff = date.timeIntervalSince(Date())
-        if diff <= 0 { return "Resetting..." }
+        if diff <= 0 { return "Reset..." }
 
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = [.day, .hour, .minute]
         formatter.unitsStyle = .abbreviated
-        formatter.maximumUnitCount = 2
+        formatter.maximumUnitCount = 1
         return formatter.string(from: diff) ?? ""
     }
 }

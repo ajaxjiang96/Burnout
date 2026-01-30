@@ -14,97 +14,75 @@ public struct SettingsView: View {
                 Toggle("Launch at login", isOn: $viewModel.launchAtLogin)
             }
             
-            Section {
-                TextField(
-                    "Organization ID", text: $viewModel.organizationId,
-                    prompt: Text("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
-                )
-                .font(.system(.body, design: .monospaced))
-
-                SecureField("Session Key", text: $viewModel.sessionKey, prompt: Text("sk-ant-..."))
-                    .font(.system(.body, design: .monospaced))
-
-            } header: {
-                HStack {
-                    Text("Claude.ai Credentials")
-                    Spacer()
-                    Button(action: { showingHelp.toggle() }) {
-                        Image(systemName: "questionmark.circle")
-                    }
-                    .buttonStyle(.plain)
-                    .popover(isPresented: $showingHelp) {
-                        helpView
-                    }
-                }
-            } footer: {
-                if viewModel.hasCredentials {
-                    Label("Credentials saved", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                        .font(.caption)
-                } else {
-                    Text("Both fields are required to fetch usage data.")
-                        .font(.caption)
-                }
-            }
-            Section("Menu Bar") {
-                Picker("Icon style", selection: $viewModel.menuBarIcon) {
+            Section("Appearance") {
+                Picker("Menu Bar Icon", selection: $viewModel.selectedIcon) {
                     ForEach(MenuBarIcon.allCases) { style in
-                        Label {
-                            Text(style.rawValue)
-                        } icon: {
-                            Image(systemName: style.iconName(for: 0.5))
-                        }
-                        .tag(style)
-                    }
-                }
-                Picker("Show percentage", selection: $viewModel.displayedUsage) {
-                    ForEach(DisplayedUsage.allCases) { option in
-                        Text(option.rawValue).tag(option)
+                        Text(style.rawValue).tag(style)
                     }
                 }
             }
             
-            Section {
-                if viewModel.hasGeminiCredentials {
-                    LabeledContent("Status") {
-                        Label("Credentials found", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                    }
-                } else {
-                    LabeledContent("Status") {
-                        Label("Not authenticated", systemImage: "xmark.circle.fill")
-                            .foregroundStyle(.red)
-                    }
-                    Text("Run 'gemini auth login' in your terminal to enable.")
+            Section("AI Services") {
+                // MARK: Claude.ai
+                Toggle("Claude.ai", isOn: $viewModel.isClaudeEnabled)
+                
+                if viewModel.isClaudeEnabled {
+                    Group {
+                        TextField(
+                            "Organization ID", text: $viewModel.organizationId,
+                            prompt: Text("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
+                        )
+                        .font(.system(.body, design: .monospaced))
+
+                        SecureField("Session Key", text: $viewModel.sessionKey, prompt: Text("sk-ant-..."))
+                            .font(.system(.body, design: .monospaced))
+                        
+                        HStack {
+                            if viewModel.hasClaudeCredentials {
+                                Label("Connected", systemImage: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                            } else {
+                                Label("Setup required", systemImage: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                            }
+                            Spacer()
+                            Button("Get Help") { showingHelp.toggle() }
+                                .buttonStyle(.link)
+                        }
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                    }
+                    .padding(.leading)
                 }
-            } header: {
-                HStack {
-                    Text("Gemini CLI")
-                    Spacer()
-                    Button(action: { showingHelp.toggle() }) {
-                        Image(systemName: "questionmark.circle")
+                
+                // MARK: Gemini
+                Toggle("Gemini CLI", isOn: $viewModel.isGeminiEnabled)
+                
+                if viewModel.isGeminiEnabled {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            if viewModel.hasGeminiCredentials {
+                                Label("Connected", systemImage: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                            } else {
+                                Label("Not authenticated", systemImage: "xmark.circle.fill")
+                                    .foregroundStyle(.red)
+                            }
+                            Spacer()
+                            Button("Setup Info") { showingHelp.toggle() }
+                                .buttonStyle(.link)
+                        }
+                        
+                        if !viewModel.hasGeminiCredentials {
+                            Text("Run 'gemini auth login' in your terminal")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .popover(isPresented: $showingHelp) {
-                        helpView
-                    }
-                }
-            } footer: {
-                if viewModel.hasGeminiCredentials {
-                    if viewModel.geminiUsage != nil {
-                        Label("Connected", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                            .font(.caption)
-                    } else if let error = viewModel.error, error.contains("Gemini") {
-                        Text(error)
-                            .foregroundStyle(.red)
-                            .font(.caption)
-                    }
+                    .font(.caption)
+                    .padding(.leading)
                 }
             }
-
+            
             Section("About") {
                 LabeledContent("Version") {
                     Text(Self.appVersion)
