@@ -8,7 +8,7 @@
 // ==========================================
 PRODUCT_NAME = Burnout
 PRODUCT_DISPLAY_NAME = Burnout
-PRODUCT_BUNDLE_IDENTIFIER = com.ajax.Burnout
+PRODUCT_BUNDLE_IDENTIFIER = com.ajaxjiang.Burnout
 MARKETING_VERSION = 1.0
 CURRENT_PROJECT_VERSION = 1
 

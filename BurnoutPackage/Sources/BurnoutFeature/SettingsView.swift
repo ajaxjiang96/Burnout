@@ -59,6 +59,39 @@ public struct SettingsView: View {
                     }
                 }
             }
+            
+            Section {
+                TextField(
+                    "Gemini Executable Path", text: $viewModel.geminiExecutablePath,
+                    prompt: Text("/usr/local/bin/gemini")
+                )
+                .font(.system(.body, design: .monospaced))
+            } header: {
+                HStack {
+                    Text("Gemini CLI")
+                    Spacer()
+                    Button(action: { showingHelp.toggle() }) {
+                        Image(systemName: "questionmark.circle")
+                    }
+                    .buttonStyle(.plain)
+                    .popover(isPresented: $showingHelp) {
+                        helpView
+                    }
+                }
+            } footer: {
+                if viewModel.hasGeminiConfig {
+                    if viewModel.geminiUsage != nil {
+                        Label("Gemini CLI connected", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                            .font(.caption)
+                    } else if let error = viewModel.error, error.contains("Gemini") {
+                        Text(error)
+                            .foregroundStyle(.red)
+                            .font(.caption)
+                    }
+                }
+            }
+
             Section("About") {
                 LabeledContent("Version") {
                     Text(Self.appVersion)
@@ -96,7 +129,7 @@ public struct SettingsView: View {
 
     private var helpView: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("How to get credentials")
+            Text("Claude.ai Credentials")
                 .font(.headline)
 
             VStack(alignment: .leading, spacing: 8) {
@@ -107,6 +140,28 @@ public struct SettingsView: View {
                     number: 4, text: "Find the 'usage' request, copy the UUID from the URL path")
                 HelpStep(number: 5, text: "Go to Application > Cookies > claude.ai")
                 HelpStep(number: 6, text: "Copy the 'sessionKey' value")
+            }
+            
+            Divider()
+            
+            Text("Gemini CLI Setup")
+                .font(.headline)
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Locate your Gemini CLI executable:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Text("which gemini")
+                    .font(.system(.caption, design: .monospaced))
+                    .padding(8)
+                    .background(Color.black.opacity(0.1))
+                    .cornerRadius(4)
+                    .textSelection(.enabled)
+                
+                Text("Copy the path (e.g., /usr/local/bin/gemini) and paste it below.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
 
             Text("Note: Session keys expire periodically and will need to be updated.")

@@ -42,7 +42,7 @@ public enum DisplayedUsage: String, CaseIterable, Identifiable {
 
 @MainActor
 public class UsageViewModel: ObservableObject {
-    private static let logger = Logger(subsystem: "com.ajax.Burnout", category: "UsageViewModel")
+    private nonisolated static let logger = Logger(subsystem: "com.ajaxjiang.Burnout", category: "UsageViewModel")
     @Published public var lastUpdated: Date = Date()
     @Published public var error: String? = nil
 
@@ -80,12 +80,35 @@ public class UsageViewModel: ObservableObject {
         }
     }
 
+    @Published public var geminiExecutablePath: String = UserDefaults.standard.string(forKey: "burnout_gemini_executable_path")?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" {
+        didSet {
+            let cleanPath = geminiExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines)
+            if cleanPath != geminiExecutablePath {
+                geminiExecutablePath = cleanPath
+            }
+            UserDefaults.standard.set(cleanPath, forKey: "burnout_gemini_executable_path")
+            refresh()
+        }
+    }
+
     @Published public var webUsage: ClaudeWebUsage? = nil
+    @Published public var geminiUsage: GeminiUsage? = nil
 
     private let service: UsageServiceProtocol
+    private let geminiService: GeminiUsageServiceProtocol
 
     public init() {
         self.service = ClaudeUsageService()
+        self.geminiService = GeminiUsageService()
+        
+        // Migrate legacy setting if needed
+        if let legacyPath = UserDefaults.standard.string(forKey: "burnout_gemini_log_path"), geminiExecutablePath.isEmpty {
+            // Only migrate if it looks like an executable, not a log file
+            if !legacyPath.hasSuffix(".log") && !legacyPath.hasSuffix(".json") {
+                 geminiExecutablePath = legacyPath
+            }
+        }
+        
         refresh()
         startPolling()
     }
@@ -93,27 +116,47 @@ public class UsageViewModel: ObservableObject {
     /// Preview-only initializer that sets mock state without triggering network or polling.
     init(
         webUsage: ClaudeWebUsage?,
+        geminiUsage: GeminiUsage? = nil,
         error: String? = nil
     ) {
         self.service = ClaudeUsageService()
+        self.geminiService = GeminiUsageService()
         self.webUsage = webUsage
+        self.geminiUsage = geminiUsage
         self.error = error
     }
 
     public func refresh() {
         Task {
-            do {
-                if hasCredentials {
-                    let usage = try await service.fetchWebUsage(sessionKey: sessionKey, organizationId: organizationId)
-                    self.webUsage = usage
+            self.error = nil
+            
+            await withTaskGroup(of: Void.self) { group in
+                if hasClaudeCredentials {
+                    group.addTask {
+                        do {
+                            let usage = try await self.service.fetchWebUsage(sessionKey: self.sessionKey, organizationId: self.organizationId)
+                            await MainActor.run { self.webUsage = usage }
+                        } catch {
+                            Self.logger.error("Claude usage refresh failed: \(error)")
+                            await MainActor.run { self.error = (self.error ?? "") + "Claude: " + error.localizedDescription + "\n" }
+                        }
+                    }
                 }
-
-                self.lastUpdated = Date()
-                self.error = nil
-            } catch {
-                Self.logger.error("Usage refresh failed: \(error)")
-                self.error = error.localizedDescription
+                
+                if hasGeminiConfig {
+                    group.addTask {
+                        do {
+                            let gUsage = try await self.geminiService.fetchUsage(executablePath: self.geminiExecutablePath)
+                            await MainActor.run { self.geminiUsage = gUsage }
+                        } catch {
+                            Self.logger.error("Gemini usage refresh failed: \(error)")
+                            await MainActor.run { self.error = (self.error ?? "") + "Gemini: " + error.localizedDescription + "\n" }
+                        }
+                    }
+                }
             }
+            
+            self.lastUpdated = Date()
         }
     }
 
@@ -125,21 +168,39 @@ public class UsageViewModel: ObservableObject {
             }
         }
     }
-
+    
     public var hasCredentials: Bool {
+        hasClaudeCredentials || hasGeminiConfig
+    }
+
+    public var hasClaudeCredentials: Bool {
         !sessionKey.isEmpty && !organizationId.isEmpty
+    }
+    
+    public var hasGeminiConfig: Bool {
+        !geminiExecutablePath.isEmpty
     }
 
     public var usagePercentage: Double {
-        guard let usage = webUsage else { return 0 }
-        switch displayedUsage {
-        case .highest:
-            return usage.maxUtilization
-        case .session:
-            return usage.fiveHour.utilization / 100.0
-        case .weekly:
-            return usage.sevenDay.utilization / 100.0
+        var percentage = 0.0
+        
+        if let usage = webUsage {
+            switch displayedUsage {
+            case .highest:
+                percentage = usage.maxUtilization
+            case .session:
+                percentage = usage.fiveHour.utilization / 100.0
+            case .weekly:
+                percentage = usage.sevenDay.utilization / 100.0
+            }
         }
+        
+        if let gemini = geminiUsage {
+            let geminiMax = gemini.maxUsagePercentage / 100.0
+            percentage = max(percentage, geminiMax)
+        }
+        
+        return percentage
     }
 
     public var menuBarIconName: String {

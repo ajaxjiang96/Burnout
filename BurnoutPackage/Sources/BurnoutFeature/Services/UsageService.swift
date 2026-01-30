@@ -26,7 +26,7 @@ public protocol UsageServiceProtocol: Sendable {
 }
 
 public final class ClaudeUsageService: UsageServiceProtocol, Sendable {
-    private static let logger = Logger(subsystem: "com.ajax.Burnout", category: "UsageService")
+    private static let logger = Logger(subsystem: "com.ajaxjiang.Burnout", category: "UsageService")
 
     public init() {}
 

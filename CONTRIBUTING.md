@@ -5,12 +5,14 @@ Thanks for your interest in contributing to Burnout! This document covers how to
 ## Development Setup
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/ajayyy/Burnout.git
    cd Burnout
    ```
 
 2. Open the workspace in Xcode 26+:
+
    ```bash
    open Burnout.xcworkspace
    ```
@@ -33,7 +35,7 @@ All business logic lives in `BurnoutPackage/Sources/BurnoutFeature/`. The `Burno
 
 ## Code Style
 
-- **Logging**: Use `os.Logger` with subsystem `"com.ajax.Burnout"`, not `print()`.
+- **Logging**: Use `os.Logger` with subsystem `"com.ajaxjiang.Burnout"`, not `print()`.
 - **Access control**: All types used by the app target must be `public` (they're in a separate SPM package).
 - **Testing**: Use Swift Testing framework (`import Testing`, `@Test`, `#expect`), not XCTest.
 - **Concurrency**: Follow Swift 6 concurrency conventions. `UsageViewModel` is `@MainActor`.
@@ -41,6 +43,7 @@ All business logic lives in `BurnoutPackage/Sources/BurnoutFeature/`. The `Burno
 ## Reporting Issues
 
 Open a [GitHub Issue](../../issues) with:
+
 - What you expected to happen
 - What actually happened
 - macOS version and Burnout version

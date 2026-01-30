@@ -11,11 +11,12 @@ If you discover a security vulnerability in Burnout, please report it responsibl
 Burnout currently stores the Claude.ai session key and organization ID in `UserDefaults`, which is plain text on disk. This is a known limitation.
 
 **Mitigations:**
+
 - The session key is a temporary cookie value that expires periodically
 - The app runs unsandboxed, so Keychain access is available — migration to Keychain is planned
 - The `UserDefaults` plist is only readable by the current user (standard macOS file permissions)
 
-**Recommendation:** Be aware that anyone with access to your macOS user account can read the stored session key from `~/Library/Preferences/com.ajax.Burnout.plist`.
+**Recommendation:** Be aware that anyone with access to your macOS user account can read the stored session key from `~/Library/Preferences/com.ajaxjiang.Burnout.plist`.
 
 ## Supported Versions
 

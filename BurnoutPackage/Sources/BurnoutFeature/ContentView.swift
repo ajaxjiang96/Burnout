@@ -32,10 +32,19 @@ public struct StatusView: View {
 
             if let usage = viewModel.webUsage {
                 usageContent(usage)
-            } else if viewModel.hasCredentials {
+            } else if viewModel.hasClaudeCredentials {
                 ProgressView()
                     .padding()
-            } else {
+            }
+            
+            if let gemini = viewModel.geminiUsage {
+                geminiContent(gemini)
+            } else if viewModel.hasGeminiConfig {
+                 // Show loader if Gemini is configured and we are waiting
+                 ProgressView().padding()
+            }
+
+            if !viewModel.hasCredentials {
                 emptyState
             }
 
@@ -62,7 +71,73 @@ public struct StatusView: View {
                 )
             }
         }
-        .padding()
+        .padding(.horizontal)
+    }
+    
+    @ViewBuilder
+    private func geminiContent(_ usage: GeminiUsage) -> some View {
+        GlassEffectContainer(spacing: 12) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Gemini CLI Usage")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    if let max = usage.models.map({ $0.requests }).max(), max > 0 {
+                        Text("\(usage.models.reduce(0) { $0 + $1.requests }) reqs")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                ForEach(usage.models) { model in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(model.name)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                            
+                            HStack(spacing: 4) {
+                                Text("\(model.requests) reqs")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                Text("•")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                Text(model.resetsIn)
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text("\(String(format: "%.1f", model.usagePercentage))%")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .foregroundColor(color(for: model.usagePercentage))
+                            
+                            ProgressView(value: model.usagePercentage, total: 100)
+                                .progressViewStyle(.linear)
+                                .frame(width: 60)
+                                .tint(color(for: model.usagePercentage))
+                        }
+                    }
+                }
+            }
+            .padding(12)
+        }
+        .padding(.horizontal)
+    }
+    
+    private func color(for percentage: Double) -> Color {
+        switch percentage {
+        case 0..<50: return .green
+        case 50..<80: return .yellow
+        case 80..<100: return .orange
+        default: return .red
+        }
     }
 
     private var emptyState: some View {
@@ -70,7 +145,7 @@ public struct StatusView: View {
             Image(systemName: "key.fill")
                 .font(.largeTitle)
                 .foregroundColor(.secondary)
-            Text("Open Settings to configure your Claude.ai credentials.")
+            Text("Open Settings to configure credentials.")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -110,6 +185,19 @@ public struct StatusView: View {
         webUsage: ClaudeWebUsage(
             fiveHour: UsageWindow(utilization: 95.0, resetsAt: Date().addingTimeInterval(1800)),
             sevenDay: UsageWindow(utilization: 82.0, resetsAt: Date().addingTimeInterval(86400))
+        )
+    ))
+}
+
+#Preview("Gemini Usage") {
+    StatusView(viewModel: UsageViewModel(
+        webUsage: nil,
+        geminiUsage: GeminiUsage(
+            models: [
+                GeminiModelUsage(name: "gemini-2.5-flash-lite", requests: 4, usagePercentage: 97.7, resetsIn: "22h 52m"),
+                GeminiModelUsage(name: "gemini-3-pro-preview", requests: 3, usagePercentage: 78.0, resetsIn: "22h 53m")
+            ],
+            lastUpdated: Date()
         )
     ))
 }
