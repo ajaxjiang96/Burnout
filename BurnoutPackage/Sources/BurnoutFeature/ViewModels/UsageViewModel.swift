@@ -89,6 +89,12 @@ public class UsageViewModel: ObservableObject {
         }
     }
 
+    @Published public var selectedIcon: MenuBarIcon = MenuBarIcon(rawValue: UserDefaults.standard.string(forKey: "burnout_selected_icon") ?? "") ?? .gauge {
+        didSet {
+            UserDefaults.standard.set(selectedIcon.rawValue, forKey: "burnout_selected_icon")
+        }
+    }
+
     @Published public var launchAtLogin: Bool = UserDefaults.standard.bool(forKey: "burnout_launch_at_login") {
         didSet {
             UserDefaults.standard.set(launchAtLogin, forKey: "burnout_launch_at_login")
@@ -189,6 +195,10 @@ public class UsageViewModel: ObservableObject {
 
     public var usagePercentage: Double {
         max(claudePercentage, geminiPercentage)
+    }
+
+    public var menuBarIconName: String {
+        selectedIcon.iconName(for: usagePercentage)
     }
 
     public var claudePercentage: Double {

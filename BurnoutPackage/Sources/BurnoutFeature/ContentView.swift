@@ -9,135 +9,234 @@ public struct StatusView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 16) {
-            // Header
-            HStack {
-                Text("Burnout Status")
-                    .font(.headline)
-                Spacer()
-                Button(action: { viewModel.refresh() }) {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal)
-            .padding(.top)
-
-            if let error = viewModel.error {
-                Text(error)
-                    .foregroundColor(.red)
-                    .font(.caption)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-            }
-
-            if viewModel.isClaudeEnabled {
-                if let usage = viewModel.webUsage {
-                    usageContent(usage)
-                } else if viewModel.hasClaudeCredentials {
-                    ProgressView()
-                        .padding()
-                }
-            }
+        VStack(spacing: 0) {
+            header
             
-            if viewModel.isGeminiEnabled {
-                if let gemini = viewModel.geminiUsage {
-                    geminiContent(gemini)
-                } else if viewModel.hasGeminiCredentials {
-                     // Show loader if Gemini is configured and we are waiting
-                     ProgressView().padding()
+            ScrollView {
+                VStack(spacing: 16) {
+                    errorView
+                    
+                    if viewModel.isClaudeEnabled {
+                        claudeSection
+                    }
+                    
+                    if viewModel.isGeminiEnabled {
+                        geminiSection
+                    }
+                    
+                    if !viewModel.hasCredentials {
+                        emptyState
+                    }
                 }
-            }
-
-            if !viewModel.hasCredentials {
-                emptyState
+                .padding(.vertical, 16)
             }
 
             Divider()
-
-            footerButtons
+            footer
         }
-        .frame(width: 300)
+        .frame(width: 320)
+        .frame(maxHeight: 800)
     }
 
-    @ViewBuilder
-    private func usageContent(_ usage: ClaudeWebUsage) -> some View {
-        GlassEffectContainer(spacing: 20) {
-            HStack(spacing: 20) {
-                UsageGauge(
-                    title: "Session (5h)",
-                    percentage: usage.fiveHour.utilization,
-                    resetText: viewModel.sessionResetText
-                )
-                UsageGauge(
-                    title: "Weekly (7d)",
-                    percentage: usage.sevenDay.utilization,
-                    resetText: viewModel.weeklyResetText
-                )
+    // MARK: - Subviews
+
+    private var header: some View {
+        HStack {
+            Text("Burnout Status")
+                .font(.system(.headline, design: .rounded))
+            Spacer()
+            Button(action: { viewModel.refresh() }) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 14, weight: .medium))
             }
+            .buttonStyle(.plain)
+            .help("Refresh quotas")
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
     }
-    
+
     @ViewBuilder
-    private func geminiContent(_ usage: GeminiUsage) -> some View {
-        GlassEffectContainer(spacing: 12) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text("Gemini CLI Quota")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
+    private var errorView: some View {
+        if let error = viewModel.error {
+            Text(error)
+                .foregroundColor(.red)
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(Color.red.opacity(0.1))
+                .cornerRadius(8)
+                .padding(.horizontal)
+        }
+    }
+
+    @ViewBuilder
+    private var claudeSection: some View {
+        if let usage = viewModel.webUsage {
+            UsageSection(title: "Claude Code Quota", systemImage: "bolt.fill") {
+                HStack(spacing: 24) {
+                    UsageGauge(
+                        title: "Session (5h)",
+                        percentage: usage.fiveHour.utilization,
+                        resetText: viewModel.sessionResetText,
+                        viewModel: viewModel
+                    )
+                    UsageGauge(
+                        title: "Weekly (7d)",
+                        percentage: usage.sevenDay.utilization,
+                        resetText: viewModel.weeklyResetText,
+                        viewModel: viewModel
+                    )
                 }
-                
-                ForEach(usage.buckets) { bucket in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(bucket.modelId.replacingOccurrences(of: "gemini-", with: ""))
-                                .font(.caption)
-                                .fontWeight(.medium)
-                            
-                            HStack(spacing: 4) {
-                                if let remaining = bucket.remainingAmount {
-                                    Text("\(remaining) left")
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                                    Text("•")
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                                }
-                                
-                                Text(formatResetTime(bucket.resetTime))
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        
-                        Spacer()
-                        
-                        VStack(alignment: .trailing, spacing: 4) {
-                            Text("\(String(format: "%.1f", bucket.usagePercentage))%")
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundColor(color(for: bucket.usagePercentage))
-                            
-                            ProgressView(value: bucket.usagePercentage, total: 100)
-                                .progressViewStyle(.linear)
-                                .frame(width: 60)
-                                .tint(color(for: bucket.usagePercentage))
-                        }
+                .frame(maxWidth: .infinity)
+            }
+        } else if viewModel.hasClaudeCredentials {
+            loadingCard(title: "Claude Code")
+        }
+    }
+
+    @ViewBuilder
+    private var geminiSection: some View {
+        if let usage = viewModel.geminiUsage {
+            UsageSection(title: "Gemini CLI Quota", systemImage: "sparkles") {
+                VStack(spacing: 12) {
+                    ForEach(usage.buckets) { bucket in
+                        GeminiUsageRow(bucket: bucket, viewModel: viewModel)
                     }
                 }
             }
-            .padding(12)
+        } else if viewModel.hasGeminiCredentials {
+            loadingCard(title: "Gemini CLI")
+        }
+    }
+
+    private func loadingCard(title: String) -> some View {
+        UsageSection(title: title, systemImage: "hourglass") {
+            HStack {
+                Spacer()
+                ProgressView()
+                    .controlSize(.small)
+                Spacer()
+            }
+            .padding(.vertical, 8)
+        }
+    }
+
+    private var emptyState: some View {
+        Button {
+            NSApplication.shared.activate(ignoringOtherApps: true)
+            openSettings()
+        } label: {
+            VStack(spacing: 12) {
+                Image(systemName: "key.viewfinder")
+                    .font(.system(size: 32))
+                    .foregroundColor(.secondary)
+                Text("Configure your credentials in Settings to track your usage.")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity)
+            .background(Color.secondary.opacity(0.05))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(Color.secondary.opacity(0.1), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal)
+    }
+
+    private var footer: some View {
+        HStack {
+            Button {
+                NSApplication.shared.activate(ignoringOtherApps: true)
+                openSettings()
+            } label: {
+                Label("Settings", systemImage: "gearshape")
+            }
+            .buttonStyle(.glass)
+            
+            Spacer()
+            
+            Button("Quit") {
+                NSApplication.shared.terminate(nil)
+            }
+            .buttonStyle(.glass)
+        }
+        .padding(16)
+    }
+}
+
+// MARK: - Components
+
+struct UsageSection<Content: View>: View {
+    let title: String
+    let systemImage: String
+    let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 10, weight: .bold))
+                Text(title.uppercased())
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+            }
+            .foregroundColor(.secondary)
+            .padding(.leading, 4)
+
+            GlassEffectContainer(spacing: 12) {
+                content()
+                    .padding(12)
+            }
         }
         .padding(.horizontal)
     }
-    
+}
+
+struct GeminiUsageRow: View {
+    let bucket: GeminiModelUsage
+    let viewModel: UsageViewModel
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(bucket.modelId.replacingOccurrences(of: "gemini-", with: ""))
+                    .font(.system(size: 12, weight: .semibold))
+                
+                HStack(spacing: 4) {
+                    if let remaining = bucket.remainingAmount {
+                        Text("\(remaining) left")
+                        Text("•")
+                    }
+                    Text(formatResetTime(bucket.resetTime))
+                }
+                .font(.system(size: 10))
+                .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("\(Int(bucket.usagePercentage))%")
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundColor(viewModel.color(for: bucket.usagePercentage / 100.0))
+                
+                ProgressView(value: min(bucket.usagePercentage, 100), total: 100)
+                    .progressViewStyle(.linear)
+                    .frame(width: 64)
+                    .tint(viewModel.color(for: bucket.usagePercentage / 100.0))
+            }
+        }
+    }
+
     private func formatResetTime(_ isoDate: String) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        // Try standard ISO8601 first (some APIs return fractional seconds, some don't)
         guard let date = formatter.date(from: isoDate) ?? ISO8601DateFormatter().date(from: isoDate) else {
             return isoDate
         }
@@ -151,51 +250,39 @@ public struct StatusView: View {
         componentFormatter.maximumUnitCount = 1
         return "in " + (componentFormatter.string(from: diff) ?? "")
     }
-    
-    private func color(for percentage: Double) -> Color {
-        switch percentage {
-        case 0..<50: return .green
-        case 50..<80: return .yellow
-        case 80..<100: return .orange
-        default: return .red
-        }
-    }
+}
 
-    private var emptyState: some View {
-        Button {
-            NSApplication.shared.activate(ignoringOtherApps: true)
-            openSettings()
-        } label: {
-            VStack(spacing: 8) {
-                Image(systemName: "key.fill")
-                    .font(.largeTitle)
-                    .foregroundColor(.secondary)
-                Text("Open Settings to configure credentials.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-        }
-        .buttonStyle(.plain)
-        .padding()
-    }
+struct UsageGauge: View {
+    let title: String
+    let percentage: Double
+    let resetText: String
+    let viewModel: UsageViewModel
 
-    private var footerButtons: some View {
-        HStack {
-            Button {
-                NSApplication.shared.activate(ignoringOtherApps: true)
-                openSettings()
-            } label: {
-                Label("Settings", systemImage: "gear")
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(title)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.secondary)
+
+            Gauge(value: min(percentage, 100), in: 0...100) {
+                Text(title)
+            } currentValueLabel: {
+                Text("\(Int(percentage))%")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
             }
-            .buttonStyle(.glass)
-            Spacer()
-            Button("Quit") {
-                NSApplication.shared.terminate(nil)
+            .gaugeStyle(.accessoryCircularCapacity)
+            .frame(width: 72, height: 72)
+            .tint(viewModel.color(for: percentage / 100.0))
+            
+            if !resetText.isEmpty {
+                Label(resetText, systemImage: "clock")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundColor(.secondary)
+            } else {
+                Text(" ")
+                    .font(.system(size: 9))
             }
-            .buttonStyle(.glass)
         }
-        .padding()
     }
 }
 
@@ -210,40 +297,23 @@ public struct StatusView: View {
     ))
 }
 
-#Preview("High Usage") {
-    StatusView(viewModel: UsageViewModel(
-        webUsage: ClaudeWebUsage(
-            fiveHour: UsageWindow(utilization: 95.0, resetsAt: Date().addingTimeInterval(1800)),
-            sevenDay: UsageWindow(utilization: 82.0, resetsAt: Date().addingTimeInterval(86400))
-        )
-    ))
-}
-
 #Preview("Gemini Usage") {
     StatusView(viewModel: UsageViewModel(
         webUsage: nil,
         geminiUsage: GeminiUsage(
             buckets: [
-                GeminiModelUsage(modelId: "gemini-2.5-flash-lite", tokenType: "REQUESTS", remainingAmount: "4", remainingFraction: 0.023, resetTime: ISO8601DateFormatter().string(from: Date().addingTimeInterval(3600))),
-                GeminiModelUsage(modelId: "gemini-3-pro-preview", tokenType: "REQUESTS", remainingAmount: "3", remainingFraction: 0.22, resetTime: ISO8601DateFormatter().string(from: Date().addingTimeInterval(7200)))
+                GeminiModelUsage(modelId: "gemini-2.0-flash", tokenType: "REQUESTS", remainingAmount: "10", remainingFraction: 0.68, resetTime: ISO8601DateFormatter().string(from: Date().addingTimeInterval(3600))),
+                GeminiModelUsage(modelId: "gemini-1.5-pro", tokenType: "REQUESTS", remainingAmount: "2", remainingFraction: 0.18, resetTime: ISO8601DateFormatter().string(from: Date().addingTimeInterval(7200)))
             ],
             lastUpdated: Date()
         )
     ))
 }
 
-#Preview("Maxed Out") {
+#Preview("Empty State") {
     StatusView(viewModel: UsageViewModel(
-        webUsage: ClaudeWebUsage(
-            fiveHour: UsageWindow(utilization: 100.0, resetsAt: Date().addingTimeInterval(900)),
-            sevenDay: UsageWindow(utilization: 100.0, resetsAt: Date().addingTimeInterval(43200))
-        )
-    ))
-}
-
-#Preview("No Credentials") {
-    StatusView(viewModel: UsageViewModel(
-        webUsage: nil
+        webUsage: nil,
+        geminiUsage: nil
     ))
 }
 
@@ -252,69 +322,4 @@ public struct StatusView: View {
         webUsage: nil,
         error: "Session expired. Please update your session key."
     ))
-}
-
-#Preview("Gauge - Green") {
-    UsageGauge(title: "Session (5h)", percentage: 25.0, resetText: "2h 30m")
-        .padding()
-}
-
-#Preview("Gauge - Red") {
-    UsageGauge(title: "Weekly (7d)", percentage: 100.0, resetText: "12h 15m")
-        .padding()
-}
-
-// MARK: - Components
-
-struct UsageGauge: View {
-    let title: String
-    let percentage: Double
-    let resetText: String
-
-    var color: Color {
-        switch percentage {
-        case 0..<50: return .green
-        case 50..<80: return .yellow
-        case 80..<100: return .orange
-        default: return .red
-        }
-    }
-
-    var body: some View {
-        VStack(spacing: 8) {
-            Text(title)
-                .font(.caption2)
-                .foregroundColor(.secondary)
-
-            ZStack {
-                Circle()
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 8)
-
-                Circle()
-                    .trim(from: 0, to: CGFloat(min(percentage, 100) / 100))
-                    .stroke(color, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    .animation(.linear, value: percentage)
-
-                Text("\(Int(percentage))%")
-                    .font(.system(size: 16, weight: .bold))
-            }
-            .frame(width: 70, height: 70)
-            .padding(6)
-            .glassEffect(.regular, in: .circle)
-
-            if !resetText.isEmpty {
-                HStack(spacing: 2) {
-                    Image(systemName: "clock")
-                        .font(.system(size: 8))
-                    Text(resetText)
-                        .font(.system(size: 10))
-                }
-                .foregroundColor(.secondary)
-            } else {
-                Text(" ")
-                    .font(.system(size: 10))
-            }
-        }
-    }
 }

@@ -67,3 +67,5 @@ fastlane/test_output
 .DS_Store
 
 DerivedData/
+.gemini/
+gha-creds-*.json
