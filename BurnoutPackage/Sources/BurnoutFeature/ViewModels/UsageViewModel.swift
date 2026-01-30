@@ -74,6 +74,7 @@ public class UsageViewModel: ObservableObject {
 
     @Published public var webUsage: ClaudeWebUsage? = nil
     @Published public var geminiUsage: GeminiUsage? = nil
+    @Published public var latestRelease: GitHubRelease? = nil
 
     private var lastChangedClaude: Date = .distantPast
     private var lastChangedGemini: Date = .distantPast
@@ -86,13 +87,16 @@ public class UsageViewModel: ObservableObject {
 
     private let service: UsageServiceProtocol
     private let geminiService: GeminiUsageServiceProtocol
+    private let updateService: UpdateServiceProtocol
 
-    public init() {
+    public init(updateService: UpdateServiceProtocol = GitHubUpdateService()) {
         self.service = ClaudeUsageService()
         self.geminiService = GeminiUsageService()
+        self.updateService = updateService
         
         refresh()
         startPolling()
+        checkForUpdates()
     }
 
     /// Preview-only initializer that sets mock state without triggering network or polling.
@@ -101,15 +105,19 @@ public class UsageViewModel: ObservableObject {
         geminiUsage: GeminiUsage? = nil,
         isClaudeEnabled: Bool = true,
         isGeminiEnabled: Bool = true,
-        error: String? = nil
+        error: String? = nil,
+        latestRelease: GitHubRelease? = nil,
+        updateService: UpdateServiceProtocol = GitHubUpdateService()
     ) {
         self.service = ClaudeUsageService()
         self.geminiService = GeminiUsageService()
+        self.updateService = updateService
         self.webUsage = webUsage
         self.geminiUsage = geminiUsage
         self.isClaudeEnabled = isClaudeEnabled
         self.isGeminiEnabled = isGeminiEnabled
         self.error = error
+        self.latestRelease = latestRelease
         
         // Initialize timestamps for preview
         if webUsage != nil { lastChangedClaude = Date() }
@@ -160,6 +168,20 @@ public class UsageViewModel: ObservableObject {
         }
     }
 
+    public func checkForUpdates() {
+        Task {
+            do {
+                if let release = try await updateService.checkForUpdates() {
+                    await MainActor.run {
+                        self.latestRelease = release
+                    }
+                }
+            } catch {
+                Self.logger.error("Failed to check for updates: \(error)")
+            }
+        }
+    }
+
     public var activeDisplayItem: MenuBarDisplayItem? {
         // Determine which service to show based on last update
         // If one is disabled/missing, prefer the other.
@@ -187,7 +209,6 @@ public class UsageViewModel: ObservableObject {
         guard let usage = webUsage else { return nil }
         
         // Logic: Session usage unless Weekly > 95%
-        let sessionUtil = usage.fiveHour.utilization
         let weeklyUtil = usage.sevenDay.utilization
         
         let targetWindow: UsageWindow
@@ -266,7 +287,11 @@ public class UsageViewModel: ObservableObject {
         !sessionKey.isEmpty && !organizationId.isEmpty
     }
     
+    // Internal for testing
+    var _mockGeminiCredentialsPresent: Bool? = nil
+
     public var hasGeminiCredentials: Bool {
+        if let mock = _mockGeminiCredentialsPresent { return mock }
         let homeDir = FileManager.default.homeDirectoryForCurrentUser
         let credsPath = homeDir.appendingPathComponent(".gemini/oauth_creds.json")
         return FileManager.default.fileExists(atPath: credsPath.path)

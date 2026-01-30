@@ -15,6 +15,7 @@ public struct StatusView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     errorView
+                    updateBanner
                     
                     if viewModel.isClaudeEnabled {
                         claudeSection
@@ -54,6 +55,33 @@ public struct StatusView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
+    }
+
+    @ViewBuilder
+    private var updateBanner: some View {
+        if let release = viewModel.latestRelease, let url = URL(string: release.htmlUrl) {
+            Link(destination: url) {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.white)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Update Available: \(release.tagName)")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white)
+                        Text("Click to download")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.white.opacity(0.9))
+                    }
+                    Spacer()
+                }
+                .padding(10)
+                .background(Color.blue.gradient)
+                .cornerRadius(10)
+                .padding(.horizontal)
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     @ViewBuilder

@@ -14,7 +14,7 @@ public struct SettingsView: View {
         Form {
             GeneralSettingsView(viewModel: viewModel)
             AIServicesSettingsView(viewModel: viewModel)
-            AboutSettingsView()
+            AboutSettingsView(viewModel: viewModel)
         }
         .formStyle(.grouped)
         .frame(width: 480, height: 500)
@@ -205,9 +205,24 @@ private struct GeminiHelpInstructions: View {
 }
 
 private struct AboutSettingsView: View {
+    @ObservedObject var viewModel: UsageViewModel
+
     var body: some View {
         Section("About") {
             LabeledContent("Version", value: SettingsView.appVersion)
+            
+            LabeledContent("Update") {
+                if let release = viewModel.latestRelease, let url = URL(string: release.htmlUrl) {
+                    Link("Available: \(release.tagName)", destination: url)
+                        .foregroundStyle(.blue)
+                } else {
+                    Button("Check for Updates") {
+                        viewModel.checkForUpdates()
+                    }
+                    .buttonStyle(.link)
+                }
+            }
+            
             LabeledContent("Copyright", value: "© 2026 Jiacheng Jiang")
             LabeledContent("License", value: "GPL-3.0")
             LabeledContent("GitHub") {
