@@ -50,6 +50,7 @@ private struct GeneralSettingsView: View {
     var body: some View {
         Section("General") {
             Toggle("Launch at login", isOn: $viewModel.launchAtLogin)
+            Toggle("Notifications", isOn: $viewModel.notificationsEnabled)
             
             VStack(alignment: .leading, spacing: 4) {
                 Text("Menu Bar Display Logic")

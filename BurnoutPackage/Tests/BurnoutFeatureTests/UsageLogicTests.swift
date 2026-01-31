@@ -32,7 +32,8 @@ struct UsageLogicTests {
             webUsage: claudeUsage,
             geminiUsage: geminiUsage,
             isClaudeEnabled: true,
-            isGeminiEnabled: true
+            isGeminiEnabled: true,
+            notificationService: MockNotificationService()
         )
         vm.sessionKey = "test"
         vm.organizationId = "test"
@@ -75,7 +76,8 @@ struct UsageLogicTests {
             webUsage: claudeUsage,
             geminiUsage: geminiUsage,
             isClaudeEnabled: true,
-            isGeminiEnabled: true
+            isGeminiEnabled: true,
+            notificationService: MockNotificationService()
         )
         vm.sessionKey = "test"
         vm.organizationId = "test"

@@ -40,136 +40,365 @@ public class UsageViewModel {
         }
     }
 
-    public var isGeminiEnabled: Bool = UserDefaults.standard.object(forKey: "burnout_gemini_enabled") as? Bool ?? true {
-        didSet {
-            UserDefaults.standard.set(isGeminiEnabled, forKey: "burnout_gemini_enabled")
-            if isGeminiEnabled { refresh() } else { geminiUsage = nil }
-        }
-    }
+        public var isGeminiEnabled: Bool = UserDefaults.standard.object(forKey: "burnout_gemini_enabled") as? Bool ?? true {
 
-    public var launchAtLogin: Bool = {
-        #if os(macOS)
-        return SMAppService.mainApp.status == .enabled
-        #else
-        return false
-        #endif
-    }() {
-        didSet {
+            didSet {
+
+                UserDefaults.standard.set(isGeminiEnabled, forKey: "burnout_gemini_enabled")
+
+                if isGeminiEnabled { refresh() } else { geminiUsage = nil }
+
+            }
+
+        }
+
+    
+
+        public var notificationsEnabled: Bool = UserDefaults.standard.bool(forKey: "burnout_notifications_enabled") {
+
+            didSet {
+
+                UserDefaults.standard.set(notificationsEnabled, forKey: "burnout_notifications_enabled")
+
+                if notificationsEnabled {
+
+                    Task {
+
+                        _ = try? await notificationService.requestPermission()
+
+                    }
+
+                }
+
+            }
+
+        }
+
+    
+
+        public var launchAtLogin: Bool = {
+
             #if os(macOS)
-            guard oldValue != launchAtLogin else { return }
-            do {
-                if launchAtLogin {
-                    if SMAppService.mainApp.status != .enabled {
-                        try SMAppService.mainApp.register()
-                    }
-                } else {
-                    if SMAppService.mainApp.status == .enabled {
-                        try SMAppService.mainApp.unregister()
-                    }
-                }
-            } catch {
-                Self.logger.error("Failed to toggle launch at login: \(error)")
-            }
+
+            return SMAppService.mainApp.status == .enabled
+
+            #else
+
+            return false
+
             #endif
-        }
-    }
 
-    public var webUsage: ClaudeWebUsage? = nil
-    public var geminiUsage: GeminiUsage? = nil
-    public var latestRelease: GitHubRelease? = nil
+        }() {
 
-    private var lastChangedClaude: Date = .distantPast
-    private var lastChangedGemini: Date = .distantPast
+            didSet {
 
-    public struct MenuBarDisplayItem {
-        public let icon: String
-        public let text: String
-        public let color: Color
-    }
+                #if os(macOS)
 
-    private let service: UsageServiceProtocol
-    private let geminiService: GeminiUsageServiceProtocol
-    private let updateService: UpdateServiceProtocol
+                guard oldValue != launchAtLogin else { return }
 
-    public init(updateService: UpdateServiceProtocol = GitHubUpdateService()) {
-        self.service = ClaudeUsageService()
-        self.geminiService = GeminiUsageService()
-        self.updateService = updateService
-        
-        refresh()
-        startPolling()
-        checkForUpdates()
-    }
+                do {
 
-    /// Preview-only initializer that sets mock state without triggering network or polling.
-    public init(
-        webUsage: ClaudeWebUsage?,
-        geminiUsage: GeminiUsage? = nil,
-        isClaudeEnabled: Bool = true,
-        isGeminiEnabled: Bool = true,
-        error: String? = nil,
-        latestRelease: GitHubRelease? = nil,
-        updateService: UpdateServiceProtocol = GitHubUpdateService()
-    ) {
-        self.service = ClaudeUsageService()
-        self.geminiService = GeminiUsageService()
-        self.updateService = updateService
-        self.webUsage = webUsage
-        self.geminiUsage = geminiUsage
-        self.isClaudeEnabled = isClaudeEnabled
-        self.isGeminiEnabled = isGeminiEnabled
-        self.error = error
-        self.latestRelease = latestRelease
-        
-        // Initialize timestamps for preview
-        if webUsage != nil { lastChangedClaude = Date() }
-        if geminiUsage != nil { lastChangedGemini = Date() }
-    }
+                    if launchAtLogin {
 
-    public func refresh() {
-        Task {
-            self.error = nil
-            
-            await withTaskGroup(of: Void.self) {
-                group in
-                if isClaudeEnabled && hasClaudeCredentials {
-                    group.addTask {
-                        do {
-                            let newUsage = try await self.service.fetchWebUsage(sessionKey: self.sessionKey, organizationId: self.organizationId)
-                            await MainActor.run {
-                                if self.webUsage != newUsage {
-                                    self.webUsage = newUsage
-                                    self.lastChangedClaude = Date()
-                                }
-                            }
-                        } catch {
-                            Self.logger.error("Claude usage refresh failed: \(error)")
-                            await MainActor.run { self.error = (self.error ?? "") + "Claude: " + error.localizedDescription + "\n" }
+                        if SMAppService.mainApp.status != .enabled {
+
+                            try SMAppService.mainApp.register()
+
                         }
-                    }
-                }
-                
-                if isGeminiEnabled && hasGeminiCredentials {
-                    group.addTask {
-                        do {
-                            let newUsage = try await self.geminiService.fetchUsage()
-                            await MainActor.run {
-                                if self.geminiUsage?.buckets != newUsage.buckets {
-                                    self.geminiUsage = newUsage
-                                    self.lastChangedGemini = Date()
-                                }
-                            }
-                        } catch {
-                            Self.logger.error("Gemini usage refresh failed: \(error)")
-                            await MainActor.run { self.error = (self.error ?? "") + "Gemini: " + error.localizedDescription + "\n" }
+
+                    } else {
+
+                        if SMAppService.mainApp.status == .enabled {
+
+                            try SMAppService.mainApp.unregister()
+
                         }
+
                     }
+
+                } catch {
+
+                    Self.logger.error("Failed to toggle launch at login: \(error)")
+
                 }
+
+                #endif
+
             }
-            
-            self.lastUpdated = Date()
+
         }
-    }
+
+    
+
+        public var webUsage: ClaudeWebUsage? = nil
+
+        public var geminiUsage: GeminiUsage? = nil
+
+        public var latestRelease: GitHubRelease? = nil
+
+    
+
+        private var lastChangedClaude: Date = .distantPast
+
+        private var lastChangedGemini: Date = .distantPast
+
+    
+
+        public struct MenuBarDisplayItem {
+
+            public let icon: String
+
+            public let text: String
+
+            public let color: Color
+
+        }
+
+    
+
+        private let service: UsageServiceProtocol
+
+        private let geminiService: GeminiUsageServiceProtocol
+
+        private let notificationService: NotificationServiceProtocol
+
+        private let updateService: UpdateServiceProtocol
+
+    
+
+        public init(
+
+            updateService: UpdateServiceProtocol = GitHubUpdateService(),
+
+            notificationService: NotificationServiceProtocol = NotificationService()
+
+        ) {
+
+            self.service = ClaudeUsageService()
+
+            self.geminiService = GeminiUsageService()
+
+            self.updateService = updateService
+
+            self.notificationService = notificationService
+
+            
+
+            if notificationsEnabled {
+
+                Task { _ = try? await notificationService.requestPermission() }
+
+            }
+
+            
+
+            refresh()
+
+            startPolling()
+
+            checkForUpdates()
+
+        }
+
+    
+
+            /// Preview-only initializer that sets mock state without triggering network or polling.
+
+    
+
+            public init(
+
+    
+
+                webUsage: ClaudeWebUsage?,
+
+    
+
+                geminiUsage: GeminiUsage? = nil,
+
+    
+
+                isClaudeEnabled: Bool = true,
+
+    
+
+                isGeminiEnabled: Bool = true,
+
+    
+
+                error: String? = nil,
+
+    
+
+                latestRelease: GitHubRelease? = nil,
+
+    
+
+                updateService: UpdateServiceProtocol = GitHubUpdateService(),
+
+    
+
+                notificationService: NotificationServiceProtocol = NotificationService()
+
+    
+
+            ) {
+
+    
+
+                self.service = ClaudeUsageService()
+
+    
+
+                self.geminiService = GeminiUsageService()
+
+    
+
+                self.updateService = updateService
+
+    
+
+                self.notificationService = notificationService
+
+    
+
+                self.webUsage = webUsage
+
+    
+
+                self.geminiUsage = geminiUsage
+
+    
+
+                self.isClaudeEnabled = isClaudeEnabled
+
+    
+
+                self.isGeminiEnabled = isGeminiEnabled
+
+    
+
+                self.error = error
+
+    
+
+                self.latestRelease = latestRelease
+
+    
+
+                
+
+    
+
+                // Initialize timestamps for preview
+
+    
+
+                if webUsage != nil { lastChangedClaude = Date() }
+
+    
+
+                if geminiUsage != nil { lastChangedGemini = Date() }
+
+    
+
+            }
+
+    
+
+        public func refresh() {
+
+            Task {
+
+                self.error = nil
+
+                
+
+                await withTaskGroup(of: Void.self) { group in
+
+                    if isClaudeEnabled && hasClaudeCredentials {
+
+                        group.addTask {
+
+                            do {
+
+                                let newUsage = try await self.service.fetchWebUsage(sessionKey: self.sessionKey, organizationId: self.organizationId)
+
+                                await MainActor.run {
+
+                                    if self.webUsage != newUsage {
+
+                                        self.webUsage = newUsage
+
+                                        self.lastChangedClaude = Date()
+
+                                    }
+
+                                }
+
+                            } catch {
+
+                                Self.logger.error("Claude usage refresh failed: \(error)")
+
+                                await MainActor.run { self.error = (self.error ?? "") + "Claude: " + error.localizedDescription + "\n" }
+
+                            }
+
+                        }
+
+                    }
+
+                    
+
+                    if isGeminiEnabled && hasGeminiCredentials {
+
+                        group.addTask {
+
+                            do {
+
+                                let newUsage = try await self.geminiService.fetchUsage()
+
+                                await MainActor.run {
+
+                                    if self.geminiUsage?.buckets != newUsage.buckets {
+
+                                        self.geminiUsage = newUsage
+
+                                        self.lastChangedGemini = Date()
+
+                                    }
+
+                                }
+
+                            } catch {
+
+                                Self.logger.error("Gemini usage refresh failed: \(error)")
+
+                                await MainActor.run { self.error = (self.error ?? "") + "Gemini: " + error.localizedDescription + "\n" }
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+                
+
+                if notificationsEnabled {
+
+                    await notificationService.checkAndNotify(for: webUsage, gemini: geminiUsage)
+
+                }
+
+                
+
+                self.lastUpdated = Date()
+
+            }
+
+        }
 
     public func checkForUpdates() {
         Task {
