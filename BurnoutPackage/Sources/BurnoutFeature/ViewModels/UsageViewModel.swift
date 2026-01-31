@@ -2,14 +2,16 @@ import SwiftUI
 import Combine
 import os
 import ServiceManagement
+import Observation
 
 @MainActor
-public class UsageViewModel: ObservableObject {
+@Observable
+public class UsageViewModel {
     private nonisolated static let logger = Logger(subsystem: "com.ajaxjiang.Burnout", category: "UsageViewModel")
-    @Published public var lastUpdated: Date = Date()
-    @Published public var error: String? = nil
+    public var lastUpdated: Date = Date()
+    public var error: String? = nil
 
-    @Published public var sessionKey: String = UserDefaults.standard.string(forKey: "burnout_session_key")?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" {
+    public var sessionKey: String = UserDefaults.standard.string(forKey: "burnout_session_key")?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" {
         didSet {
             let cleanKey = sessionKey.trimmingCharacters(in: .whitespacesAndNewlines)
             if cleanKey != sessionKey {
@@ -20,7 +22,7 @@ public class UsageViewModel: ObservableObject {
         }
     }
 
-    @Published public var organizationId: String = UserDefaults.standard.string(forKey: "burnout_org_id")?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" {
+    public var organizationId: String = UserDefaults.standard.string(forKey: "burnout_org_id")?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" {
         didSet {
             let cleanId = organizationId.trimmingCharacters(in: .whitespacesAndNewlines)
             if cleanId != organizationId {
@@ -31,21 +33,21 @@ public class UsageViewModel: ObservableObject {
         }
     }
 
-    @Published public var isClaudeEnabled: Bool = UserDefaults.standard.object(forKey: "burnout_claude_enabled") as? Bool ?? true {
+    public var isClaudeEnabled: Bool = UserDefaults.standard.object(forKey: "burnout_claude_enabled") as? Bool ?? true {
         didSet {
             UserDefaults.standard.set(isClaudeEnabled, forKey: "burnout_claude_enabled")
             if isClaudeEnabled { refresh() } else { webUsage = nil }
         }
     }
 
-    @Published public var isGeminiEnabled: Bool = UserDefaults.standard.object(forKey: "burnout_gemini_enabled") as? Bool ?? true {
+    public var isGeminiEnabled: Bool = UserDefaults.standard.object(forKey: "burnout_gemini_enabled") as? Bool ?? true {
         didSet {
             UserDefaults.standard.set(isGeminiEnabled, forKey: "burnout_gemini_enabled")
             if isGeminiEnabled { refresh() } else { geminiUsage = nil }
         }
     }
 
-    @Published public var launchAtLogin: Bool = {
+    public var launchAtLogin: Bool = {
         #if os(macOS)
         return SMAppService.mainApp.status == .enabled
         #else
@@ -72,9 +74,9 @@ public class UsageViewModel: ObservableObject {
         }
     }
 
-    @Published public var webUsage: ClaudeWebUsage? = nil
-    @Published public var geminiUsage: GeminiUsage? = nil
-    @Published public var latestRelease: GitHubRelease? = nil
+    public var webUsage: ClaudeWebUsage? = nil
+    public var geminiUsage: GeminiUsage? = nil
+    public var latestRelease: GitHubRelease? = nil
 
     private var lastChangedClaude: Date = .distantPast
     private var lastChangedGemini: Date = .distantPast
@@ -128,7 +130,8 @@ public class UsageViewModel: ObservableObject {
         Task {
             self.error = nil
             
-            await withTaskGroup(of: Void.self) { group in
+            await withTaskGroup(of: Void.self) {
+                group in
                 if isClaudeEnabled && hasClaudeCredentials {
                     group.addTask {
                         do {

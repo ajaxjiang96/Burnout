@@ -2,7 +2,7 @@ import SwiftUI
 
 public struct StatusView: View {
     @Environment(\.openSettings) private var openSettings
-    @ObservedObject var viewModel: UsageViewModel
+    var viewModel: UsageViewModel
 
     public init(viewModel: UsageViewModel) {
         self.viewModel = viewModel

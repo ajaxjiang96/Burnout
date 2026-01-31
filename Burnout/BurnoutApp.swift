@@ -4,7 +4,7 @@ import os
 
 @main
 struct BurnoutApp: App {
-    @StateObject private var viewModel = UsageViewModel()
+    @State private var viewModel = UsageViewModel()
     private static let logger = Logger(subsystem: "com.ajaxjiang.Burnout", category: "App")
 
     init() {

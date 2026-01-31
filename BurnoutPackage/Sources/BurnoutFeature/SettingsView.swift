@@ -1,10 +1,8 @@
 import SwiftUI
-
-import SwiftUI
 import AppKit
 
 public struct SettingsView: View {
-    @ObservedObject var viewModel: UsageViewModel
+    var viewModel: UsageViewModel
 
     public init(viewModel: UsageViewModel) {
         self.viewModel = viewModel
@@ -47,7 +45,7 @@ private struct DisclaimerSettingsView: View {
 }
 
 private struct GeneralSettingsView: View {
-    @ObservedObject var viewModel: UsageViewModel
+    @Bindable var viewModel: UsageViewModel
     
     var body: some View {
         Section("General") {
@@ -74,7 +72,7 @@ private struct GeneralSettingsView: View {
 }
 
 private struct AIServicesSettingsView: View {
-    @ObservedObject var viewModel: UsageViewModel
+    @Bindable var viewModel: UsageViewModel
     @State private var showClaudeHelp = false
     @State private var showGeminiHelp = false
     
@@ -228,7 +226,7 @@ private struct GeminiHelpInstructions: View {
 }
 
 private struct AboutSettingsView: View {
-    @ObservedObject var viewModel: UsageViewModel
+    var viewModel: UsageViewModel
 
     var body: some View {
         Section("About") {
