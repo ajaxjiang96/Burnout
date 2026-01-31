@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-01-31
+
+### Added
+- **Smart Notifications**: Get proactive alerts when you hit 80% or 95% of your quota.
+- **"Back in Business" Pings**: Receive a notification the moment your rate limit resets.
+- Added a Notifications toggle in Settings to manage alerts.
+
+### Changed
+- **Modern State Management**: Refactored the entire app to use the Swift `@Observable` macro for better performance and reliability.
+- Optimized UI updates and reduced memory footprint.
+
 ## [1.1.1] - 2026-01-31
 
 ### Added
