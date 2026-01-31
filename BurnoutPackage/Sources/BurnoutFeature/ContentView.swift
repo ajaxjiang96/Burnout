@@ -87,15 +87,35 @@ public struct StatusView: View {
     @ViewBuilder
     private var errorView: some View {
         if let error = viewModel.error {
-            Text(error)
-                .foregroundColor(.red)
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .background(Color.red.opacity(0.1))
-                .cornerRadius(8)
-                .padding(.horizontal)
+            VStack(spacing: 8) {
+                Text(error)
+                    .foregroundColor(.red)
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .multilineTextAlignment(.center)
+                
+                if error.contains("Gemini") && (error.contains("expired") || error.contains("401")) {
+                    Button {
+                        viewModel.attemptGeminiRefresh()
+                    } label: {
+                        Label("Refresh Gemini Session", systemImage: "arrow.clockwise")
+                            .font(.system(size: 10, weight: .bold))
+                    }
+                    .buttonStyle(.glass)
+                } else {
+                    Button {
+                        viewModel.refresh()
+                    } label: {
+                        Label("Retry", systemImage: "arrow.clockwise")
+                            .font(.system(size: 10, weight: .bold))
+                    }
+                    .buttonStyle(.glass)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 10)
+            .background(Color.red.opacity(0.1))
+            .cornerRadius(8)
+            .padding(.horizontal)
         }
     }
 

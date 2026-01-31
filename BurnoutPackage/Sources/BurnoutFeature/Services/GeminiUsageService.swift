@@ -4,6 +4,7 @@ import os
 public enum GeminiUsageError: Error, LocalizedError {
     case credentialsNotFound
     case invalidCredentials
+    case sessionExpired
     case apiError(Int, String)
     case invalidResponse
     case networkError(Error)
@@ -14,6 +15,8 @@ public enum GeminiUsageError: Error, LocalizedError {
             return "Gemini CLI credentials not found. Run 'gemini auth login' in your terminal."
         case .invalidCredentials:
             return "Invalid Gemini CLI credentials. Try running 'gemini auth login' again."
+        case .sessionExpired:
+            return "Gemini session expired. Run any 'gemini' command to refresh."
         case .apiError(let code, let message):
             return "API Error \(code): \(message)"
         case .invalidResponse:
@@ -26,6 +29,7 @@ public enum GeminiUsageError: Error, LocalizedError {
 
 public protocol GeminiUsageServiceProtocol: Sendable {
     func fetchUsage() async throws -> GeminiUsage
+    func attemptRefresh() async throws
 }
 
 public final class GeminiUsageService: GeminiUsageServiceProtocol, Sendable {
@@ -57,6 +61,10 @@ public final class GeminiUsageService: GeminiUsageServiceProtocol, Sendable {
     }
     
     public func fetchUsage() async throws -> GeminiUsage {
+        try await fetchUsageWithRetry(allowRefresh: true)
+    }
+    
+    private func fetchUsageWithRetry(allowRefresh: Bool) async throws -> GeminiUsage {
         // 1. Locate credentials
         guard FileManager.default.fileExists(atPath: credentialsURL.path) else {
             throw GeminiUsageError.credentialsNotFound
@@ -80,7 +88,6 @@ public final class GeminiUsageService: GeminiUsageServiceProtocol, Sendable {
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        // Use placeholder project ID as discovered
         let body = ["project": "gemini-cli-placeholder"]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
@@ -97,6 +104,21 @@ public final class GeminiUsageService: GeminiUsageServiceProtocol, Sendable {
             throw GeminiUsageError.invalidResponse
         }
         
+        if httpResponse.statusCode == 401 {
+            if allowRefresh {
+                Self.logger.info("Gemini token expired, attempting refresh...")
+                do {
+                    try await attemptRefresh()
+                    return try await fetchUsageWithRetry(allowRefresh: false)
+                } catch {
+                    Self.logger.error("Auto-refresh failed: \(error)")
+                    throw GeminiUsageError.sessionExpired
+                }
+            } else {
+                throw GeminiUsageError.sessionExpired
+            }
+        }
+        
         guard httpResponse.statusCode == 200 else {
             let errorMsg = String(data: data, encoding: .utf8) ?? "Unknown error"
             Self.logger.error("API Error: \(httpResponse.statusCode) - \(errorMsg)")
@@ -110,6 +132,24 @@ public final class GeminiUsageService: GeminiUsageServiceProtocol, Sendable {
         } catch {
             Self.logger.error("Failed to decode response: \(error)")
             throw GeminiUsageError.invalidResponse
+        }
+    }
+    
+    public func attemptRefresh() async throws {
+        // Run a lightweight command to trigger the CLI's refresh logic
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = ["gemini", "models", "list"]
+        
+        // Suppress output
+        process.standardOutput = Pipe()
+        process.standardError = Pipe()
+        
+        try process.run()
+        process.waitUntilExit()
+        
+        if process.terminationStatus != 0 {
+            throw GeminiUsageError.sessionExpired
         }
     }
 }

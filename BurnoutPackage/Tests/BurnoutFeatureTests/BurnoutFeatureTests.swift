@@ -8,7 +8,7 @@ struct UsageViewModelTests {
     @MainActor
     @Test("Default state has zero usage and no credentials")
     func defaultState() {
-        let viewModel = UsageViewModel(webUsage: nil, notificationService: MockNotificationService())
+        let viewModel = UsageViewModel(webUsage: nil, notificationService: MockNotificationService(), geminiService: MockGeminiUsageService())
 
         #expect(viewModel.webUsage == nil)
         #expect(viewModel.geminiUsage == nil)
@@ -26,7 +26,7 @@ struct UsageViewModelTests {
             fiveHour: UsageWindow(utilization: 60.0, resetsAt: nil),
             sevenDay: UsageWindow(utilization: 30.0, resetsAt: nil)
         )
-        let vm1 = UsageViewModel(webUsage: sessionHigher, notificationService: MockNotificationService())
+        let vm1 = UsageViewModel(webUsage: sessionHigher, notificationService: MockNotificationService(), geminiService: MockGeminiUsageService())
         #expect(vm1.claudePercentage == 0.6)
 
         // Case 2: Weekly is higher
@@ -34,7 +34,7 @@ struct UsageViewModelTests {
             fiveHour: UsageWindow(utilization: 40.0, resetsAt: nil),
             sevenDay: UsageWindow(utilization: 80.0, resetsAt: nil)
         )
-        let vm2 = UsageViewModel(webUsage: weeklyHigher, notificationService: MockNotificationService())
+        let vm2 = UsageViewModel(webUsage: weeklyHigher, notificationService: MockNotificationService(), geminiService: MockGeminiUsageService())
         #expect(vm2.claudePercentage == 0.8)
     }
 
@@ -46,7 +46,7 @@ struct UsageViewModelTests {
             fiveHour: UsageWindow(utilization: 45.0, resetsAt: nil),
             sevenDay: UsageWindow(utilization: 10.0, resetsAt: nil)
         )
-        let vm = UsageViewModel(webUsage: normalUsage, isGeminiEnabled: false, notificationService: MockNotificationService())
+        let vm = UsageViewModel(webUsage: normalUsage, isGeminiEnabled: false, notificationService: MockNotificationService(), geminiService: MockGeminiUsageService())
         vm.isClaudeEnabled = true
         vm.sessionKey = "dummy"
         vm.organizationId = "dummy"
@@ -68,7 +68,7 @@ struct UsageViewModelTests {
             fiveHour: UsageWindow(utilization: 10.0, resetsAt: nil),
             sevenDay: UsageWindow(utilization: 96.0, resetsAt: nil)
         )
-        let vm = UsageViewModel(webUsage: highWeekly, isGeminiEnabled: false, notificationService: MockNotificationService())
+        let vm = UsageViewModel(webUsage: highWeekly, isGeminiEnabled: false, notificationService: MockNotificationService(), geminiService: MockGeminiUsageService())
         vm.isClaudeEnabled = true
         vm.sessionKey = "dummy"
         vm.organizationId = "dummy"
@@ -97,7 +97,7 @@ struct UsageViewModelTests {
             lastUpdated: Date()
         )
         
-        let vm = UsageViewModel(webUsage: nil, geminiUsage: usage, isClaudeEnabled: false, isGeminiEnabled: true, notificationService: MockNotificationService())
+        let vm = UsageViewModel(webUsage: nil, geminiUsage: usage, isClaudeEnabled: false, isGeminiEnabled: true, notificationService: MockNotificationService(), geminiService: MockGeminiUsageService())
         vm._mockGeminiCredentialsPresent = true
         
         guard let item = vm.activeDisplayItem else {

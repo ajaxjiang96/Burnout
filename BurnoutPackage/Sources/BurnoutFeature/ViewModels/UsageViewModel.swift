@@ -166,143 +166,63 @@ public class UsageViewModel {
 
     
 
-        public init(
-
-            updateService: UpdateServiceProtocol = GitHubUpdateService(),
-
-            notificationService: NotificationServiceProtocol = NotificationService()
-
-        ) {
-
-            self.service = ClaudeUsageService()
-
-            self.geminiService = GeminiUsageService()
-
-            self.updateService = updateService
-
-            self.notificationService = notificationService
-
-            
-
-            if notificationsEnabled {
-
-                Task { _ = try? await notificationService.requestPermission() }
-
-            }
-
-            
-
-            refresh()
-
-            startPolling()
-
-            checkForUpdates()
-
+    public init(
+        updateService: UpdateServiceProtocol = GitHubUpdateService(),
+        notificationService: NotificationServiceProtocol = NotificationService(),
+        geminiService: GeminiUsageServiceProtocol = GeminiUsageService()
+    ) {
+        self.service = ClaudeUsageService()
+        self.geminiService = geminiService
+        self.updateService = updateService
+        self.notificationService = notificationService
+        
+        if notificationsEnabled {
+            Task { _ = try? await notificationService.requestPermission() }
         }
+        
+        refresh()
+        startPolling()
+        checkForUpdates()
+    }
 
-    
+    /// Preview-only initializer that sets mock state without triggering network or polling.
+    public init(
+        webUsage: ClaudeWebUsage?,
+        geminiUsage: GeminiUsage? = nil,
+        isClaudeEnabled: Bool = true,
+        isGeminiEnabled: Bool = true,
+        error: String? = nil,
+        latestRelease: GitHubRelease? = nil,
+        updateService: UpdateServiceProtocol = GitHubUpdateService(),
+        notificationService: NotificationServiceProtocol = NotificationService(),
+        geminiService: GeminiUsageServiceProtocol = GeminiUsageService()
+    ) {
+        self.service = ClaudeUsageService()
+        self.geminiService = geminiService
+        self.updateService = updateService
+        self.notificationService = notificationService
+        self.webUsage = webUsage
+        self.geminiUsage = geminiUsage
+        self.isClaudeEnabled = isClaudeEnabled
+        self.isGeminiEnabled = isGeminiEnabled
+        self.error = error
+        self.latestRelease = latestRelease
+        
+        // Initialize timestamps for preview
+        if webUsage != nil { lastChangedClaude = Date() }
+        if geminiUsage != nil { lastChangedGemini = Date() }
+    }
 
-            /// Preview-only initializer that sets mock state without triggering network or polling.
-
-    
-
-            public init(
-
-    
-
-                webUsage: ClaudeWebUsage?,
-
-    
-
-                geminiUsage: GeminiUsage? = nil,
-
-    
-
-                isClaudeEnabled: Bool = true,
-
-    
-
-                isGeminiEnabled: Bool = true,
-
-    
-
-                error: String? = nil,
-
-    
-
-                latestRelease: GitHubRelease? = nil,
-
-    
-
-                updateService: UpdateServiceProtocol = GitHubUpdateService(),
-
-    
-
-                notificationService: NotificationServiceProtocol = NotificationService()
-
-    
-
-            ) {
-
-    
-
-                self.service = ClaudeUsageService()
-
-    
-
-                self.geminiService = GeminiUsageService()
-
-    
-
-                self.updateService = updateService
-
-    
-
-                self.notificationService = notificationService
-
-    
-
-                self.webUsage = webUsage
-
-    
-
-                self.geminiUsage = geminiUsage
-
-    
-
-                self.isClaudeEnabled = isClaudeEnabled
-
-    
-
-                self.isGeminiEnabled = isGeminiEnabled
-
-    
-
-                self.error = error
-
-    
-
-                self.latestRelease = latestRelease
-
-    
-
-                
-
-    
-
-                // Initialize timestamps for preview
-
-    
-
-                if webUsage != nil { lastChangedClaude = Date() }
-
-    
-
-                if geminiUsage != nil { lastChangedGemini = Date() }
-
-    
-
+    public func attemptGeminiRefresh() {
+        Task {
+            do {
+                try await geminiService.attemptRefresh()
+                refresh()
+            } catch {
+                self.error = "Failed to refresh Gemini: \(error.localizedDescription)"
             }
+        }
+    }
 
     
 

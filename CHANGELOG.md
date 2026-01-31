@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.2.1] - 2026-01-31
+
+### Added
+- **Automatic Gemini Refresh**: The app now automatically attempts to refresh your Gemini CLI session if it expires.
+- **Actionable Error Feedback**: Added a "Refresh Gemini Session" button in the status view for manual session recovery.
+
+### Fixed
+- Improved error handling and retry logic for Gemini CLI quotas.
+
 ## [1.2.0] - 2026-01-31
 
 ### Added
