@@ -2,9 +2,11 @@
 
 # Burnout
 
-A native macOS menu bar app that shows your Claude.ai usage at a glance — session and weekly utilization percentages, time until reset, and visual warnings when you're close to the limit.
+> ⚠️ **Archived**: This project is no longer maintained. Please use **[CodexBar](https://github.com/steipete/CodexBar)** instead — it supports more providers (Claude, Codex, Cursor, Gemini, Kimi, and 10+ others), has better UI, and is actively maintained.
 
-<a href="https://buymeacoffee.com/ajaxjiang"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=flat&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me a Coffee" /></a>
+---
+
+A native macOS menu bar app that shows your Claude.ai usage at a glance — session and weekly utilization percentages, time until reset, and visual warnings when you're close to the limit.
 
 ## Features
 
